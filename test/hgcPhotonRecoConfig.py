@@ -68,8 +68,9 @@ from UserCode.HGCanalysis.storeTools_cff import fillFromStore
 #fileNames = open("LCFilenames.txt","r")
 #fileNames = open("newRecoFiles2.txt","r")#
 #fileNames = open("sample/140PU/HGG_SLHC25.txt","r")
-#fileNames = open("sample/0PU/HGG_SLHC25.txt","r")
-fileNames = open("sample/0PU/SingleGamma_SLHC25.txt","r")
+fileNames = open("sample/0PU/HGG_SLHC25.txt","r")
+#fileNames = open("sample/0PU/SingleGamma_SLHC25.txt","r")
+#fileNames = open("sample/0PU/SingleGamma_SLHC23.txt","r")
 
 process.source = cms.Source("PoolSource",
                             #fileNames=cms.untracked.vstring("root://cms-xrd-global.cern.ch//store/relval/CMSSW_6_2_0_SLHC22/RelValH130GGgluonfusion_14TeV/GEN-SIM-RECO/PH2_1K_FB_V6_UPGHGCalV5-v1/00000/1CC2630B-6A8F-E411-95D3-0025905A48BA.root"),
@@ -87,7 +88,9 @@ import getpass
 whoami=getpass.getuser()
 outputTag=preFix.replace('/','_')
 #process.TFileService = cms.Service("TFileService", fileName = cms.string('/tmp/%s/%s_Hits_%d.root'%(whoami,outputTag,ffile)))
-process.TFileService = cms.Service("TFileService", fileName = cms.string('Calib_singleGamma_0pu.root'))
+#process.TFileService = cms.Service("TFileService", fileName = cms.string('test.root'))
+#process.TFileService = cms.Service("TFileService", fileName = cms.string('Calib_singleGamma_0pu.root'))
+process.TFileService = cms.Service("TFileService", fileName = cms.string('Truth_Hgg_0pu_maxFromHit.root'))
 #process.TFileService = cms.Service("TFileService", fileName = cms.string('testSLHC25_100.root'))
 
 weight_vec_ee_electrons = [0.080]

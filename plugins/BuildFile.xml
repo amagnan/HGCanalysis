@@ -22,6 +22,7 @@
 <use name="Geometry/FCalGeometry"/>
 <use name="Geometry/TrackerGeometryBuilder"/>
 <use name="DataFormats/GeometrySurface"/>
+<use name="DataFormats/​GeometryVector"/>
 <use name="DataFormats/TrajectorySeed"/>
 <use name="TrackingTools/TrajectoryState"/>
 <use name="TrackingTools/MaterialEffects"/>

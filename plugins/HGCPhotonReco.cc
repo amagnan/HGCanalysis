@@ -79,8 +79,11 @@ using namespace std;
 // information to be loaded into TTree
 struct info_t {
   bool isValid;
+  bool invalidDetid;
+  bool invalidNeighbour;
   float etaTrue;
   float phiTrue;
+  float etadetTrue;
   float dRTrue;
   float eTrue;
   float xvtxTrue;
@@ -92,6 +95,7 @@ struct info_t {
   float phiSeed;
   float etaReco;
   float phiReco;
+  float etadetReco;
   float phiWidth;
   float etaWidth;
   int clustersSize;
@@ -102,9 +106,16 @@ struct info_t {
   float eRecoCleaned[5];
   int converted;
   unsigned showerMax;
+  double zShowerMax;
   bool noPhiCrack;
+  bool noPhiCrackPCA;
+  float xPCA;
+  float yPCA;
+  float zPCA;
+  float etaPCA;
+  float phiPCA;
 
-  double calibratedE(const double Etot, const double eta){
+  /*double calibratedE(const double Etot, const double eta){
     //calibration for signal region 2: 3*3 cm^2
     double pars[3] = {77,3.4,-0.50};
     double paro[3] = {-11.6,-7.7,-8.8};
@@ -112,23 +123,30 @@ struct info_t {
     double offset = paro[0] + paro[1]*fabs(eta) + paro[2]*eta*eta;
     double slope = pars[0] + pars[1]*fabs(eta) + pars[2]*eta*eta;
     return (Etot-offset)/slope;
-  };
+    };*/
 
-  void correctForEtaDep(const ROOT::Math::XYZVector & posSC){
-    ROOT::Math::XYZVector vtx = ROOT::Math::XYZVector(xvtxTrue,yvtxTrue,zvtxTrue);
-    ROOT::Math::XYZVector photon = posSC-vtx;
-    etaReco = photon.eta();
-    phiReco = photon.phi();
-    if (fabs(etaReco)>5) return;
-    for (unsigned i(0);i<5;++i){
-      //correction for angle in absorber thickness
-      eReco[i]  = eReco[i]/fabs(tanh(etaTrue));
-      eRecoCleaned[i]  = calibratedE(eReco[i],etaTrue);
+  void correctForEtaDep(const ROOT::Math::XYZVector & posSC, const bool isPCA=false){
+    if (!isPCA) {
+      ROOT::Math::XYZVector vtx = ROOT::Math::XYZVector(xvtxTrue,yvtxTrue,zvtxTrue);
+      etadetReco = posSC.eta();
+      ROOT::Math::XYZVector photon = posSC-vtx;
+      etaReco = photon.eta();
+      phiReco = photon.phi();
+      if (fabs(etaReco)>5) return;
     }
+    //for (unsigned i(0);i<5;++i){
+      //correction for angle in absorber thickness
+      //if (isPCA) eRecoCleaned[i]  = calibratedE(eRecoCleaned[i]/fabs(tanh(etaPCA)),etaPCA);
+      if (isPCA) eRecoCleaned[2]  = eRecoCleaned[2]/fabs(tanh(etaPCA));
+      else {
+	//eReco[2]  = eReco[2];
+	eReco[3]  = eReco[3]/fabs(tanh(etaTrue));
+      }
+      //}
     
   };
 
-  void fillSC(const edm::Ptr<reco::SuperCluster> & aSC){
+  void fillSC(const edm::Ptr<reco::SuperCluster> & aSC, PCAShowerAnalysis  & pcaShowerAnalysis){
     if (aSC.isNull()) return;
     etaSC = aSC->eta();
     phiSC = aSC->phi();
@@ -148,6 +166,17 @@ struct info_t {
       //if(etot/eSC >0.9) break;
     }
 
+    //get shower position and direction
+    GlobalPoint pcaShowerPos;
+    GlobalVector pcaShowerDir;
+    pcaShowerAnalysis.showerParameters(&(*aSC),pcaShowerPos,pcaShowerDir);
+    xPCA = pcaShowerPos.x();
+    yPCA = pcaShowerPos.y();
+    zPCA = pcaShowerPos.z();
+    etaPCA =  pcaShowerDir.eta();
+    phiPCA =  pcaShowerDir.phi();
+
+
   };
 
   void fillTruth(const edm::Ptr<reco::GenParticle> & aPhoton, const edm::Handle<edm::SimTrackContainer> SimTk, const edm::Handle<edm::SimVertexContainer> SimVtx){
@@ -158,14 +187,18 @@ struct info_t {
     xvtxTrue = (aPhoton->vertex()).X();
     yvtxTrue = (aPhoton->vertex()).Y();
     zvtxTrue = (aPhoton->vertex()).Z();
-		math::XYZVectorD hitPos=getInteractionPositionLC(SimTk.product(),SimVtx.product(), aPhoton->pt()).pos;
-		const double z = std::abs(hitPos.z());
-		converted = (unsigned)(z < 317 && z > 1e-3);
+
+    math::XYZVectorD hitPos=getInteractionPositionLC(SimTk.product(),SimVtx.product(), aPhoton->pt()).pos;
+    const double z = std::fabs(hitPos.z());
+    converted = (unsigned)(z < 317 && z > 1e-3);
   };
 
   void initialise(){
     isValid=false;
+    invalidDetid=false;
+    invalidNeighbour=false;
     etaTrue=-5.;
+    etadetTrue=-5.;
     phiTrue=-5.;
     dRTrue=-5;
     eTrue=-1.;
@@ -177,19 +210,28 @@ struct info_t {
     etaSeed=-5.;
     phiSeed=-5.;
     etaReco = -5;
+    etadetReco = -5;
     phiReco = -5;
     for (unsigned i(0);i<5;++i){
       eReco[i]  = 0;         
       eRecoCleaned[i]  = 0;         
     }
     eSeed     =-1.;
+    eSC = -1;
     etaWidth=-1.;
     phiWidth=-1.;
     clustersSize=-1;
     nClusters09=-1;
     converted=-1;
     showerMax = 0;
+    zShowerMax = 0;
     noPhiCrack=true;
+    noPhiCrackPCA=true;
+    xPCA = 0;
+    yPCA = 0;
+    zPCA = 0;
+    etaPCA = 0;
+    phiPCA = 0;
   };
 };
 
@@ -203,7 +245,10 @@ public:
   
   double DeltaPhi(const double & phi1, const double & phi2);
 
+  void fillzPositions(const edm::PtrVector<HGCRecHit>& rechitvec);
+
   void getPhotonEnergy(const edm::PtrVector<HGCRecHit>& rechitvec,info_t & info);
+  void getPhotonEnergy(const edm::PtrVector<HGCRecHit>& rechitvec,info_t & info,const double & phimax, const double & etamax, const bool isPCA=false);
   void getMaximumCell(const edm::PtrVector<HGCRecHit>& rechitvec,const double & phimax,const double & etamax,std::vector<HGCEEDetId> & detidmax);
   //void getTotalEnergy(const edm::PtrVector<HGCRecHit>& rechitvec,
   //const std::vector<HGCEEDetId> & eventPos,
@@ -213,13 +258,16 @@ public:
 				 std::vector<HGCEEDetId> & recoPos,
 				 std::vector<double> & recoE);*/
 
-  bool isInFid(const edm::Ptr<reco::GenParticle> & aPhoton);
+  float resumEmEnergyTest( const edm::Ptr<reco::SuperCluster>& sc,const edm::PtrVector<reco::PFCluster>& clusters);
+   bool isInFid(const edm::Ptr<reco::GenParticle> & aPhoton);
   double getW0(const unsigned layer);
   double absWeight(const unsigned layer, const bool dedx=false);
   //double calibratedE(const double Etot, const double eta);
   void fillNeighbours(const HGCEEDetId & detidmax,
 		      std::vector<double> & Exy,
-		      info_t & info);
+		      std::vector<double> & Exyetacor,
+		      info_t & info,
+		      bool isPCA);
 private:
 
   virtual void beginJob() ;
@@ -258,7 +306,7 @@ private:
   unsigned nSR_;
   unsigned debug_;
   bool singleGamma_;
-
+  std::map<unsigned,double> zPos_;
   ROOT::Math::XYZPoint truthVtx_;
 
   //histograms
@@ -267,6 +315,16 @@ private:
   //TH2F *hyvsx_[30];
   //TH2F *hphisecvscellid_[30];
   // TH2F *hyvsxzoom_[30];
+
+  TH1F *dxMaxTruth_;
+  TH1F *dyMaxTruth_;
+  TH1F *dzMaxTruth_;
+  TH2F *dphiMaxTruthvsLayer_;
+  TH1F *dxMaxNeigh_[9];
+  TH1F *dyMaxNeigh_[9];
+  TH1F *dzMaxNeigh_[9];
+  TH1F *dRmin_[30];
+
 
 };
 
@@ -289,7 +347,10 @@ HGCPhotonReco::HGCPhotonReco(const edm::ParameterSet& iConfig):
 
 	tree_ = fs_->make<TTree>("tree","");
 	tree_->Branch("isValid1"              ,&info1_.isValid             ,"isValid1/B");
+	tree_->Branch("invalidDetid1"              ,&info1_.invalidDetid             ,"invalidDetid1/B");
+	tree_->Branch("invalidNeighbour1"              ,&info1_.invalidNeighbour             ,"invalidNeighbour1/B");
 	tree_->Branch("etaTrue1"              ,&info1_.etaTrue             ,"etaTrue1/F");
+	tree_->Branch("etadetTrue1"              ,&info1_.etadetTrue             ,"etadetTrue1/F");
 	tree_->Branch("phiTrue1"              ,&info1_.phiTrue             ,"phiTrue1/F");
 	tree_->Branch("dRTrue1"              ,&info1_.dRTrue            ,"dRTrue1/F");
 	tree_->Branch("eTrue1"              ,&info1_.eTrue            ,"eTrue1/F");
@@ -302,6 +363,7 @@ HGCPhotonReco::HGCPhotonReco(const edm::ParameterSet& iConfig):
 	tree_->Branch("etaSeed1"              ,&info1_.etaSeed             ,"etaSeed1/F");
 	tree_->Branch("phiSeed1"              ,&info1_.phiSeed             ,"phiSeed1/F");
 	tree_->Branch("etaReco1"              ,&info1_.etaReco             ,"etaReco1/F");
+	tree_->Branch("etadetReco1"              ,&info1_.etadetReco             ,"etadetReco1/F");
 	tree_->Branch("phiReco1"              ,&info1_.phiReco             ,"phiReco1/F");
 	tree_->Branch("etaWidth1"              ,&info1_.etaWidth             ,"etaWidth1/F");
 	tree_->Branch("phiWidth1"              ,&info1_.phiWidth             ,"phiWidth1/F");
@@ -317,16 +379,30 @@ HGCPhotonReco::HGCPhotonReco(const edm::ParameterSet& iConfig):
 	tree_->Branch("eSR3Reco1"              ,&info1_.eReco[2]            ,"eSR3Reco1/F");
 	tree_->Branch("eSR4Reco1"              ,&info1_.eReco[3]            ,"eSR4Reco1/F");
 	tree_->Branch("eSR5Reco1"              ,&info1_.eReco[4]            ,"eSR5Reco1/F");
+	tree_->Branch("eSR1RecoCleaned1"              ,&info1_.eRecoCleaned[0]            ,"eSR1RecoCleaned1/F");
+	tree_->Branch("eSR2RecoCleaned1"              ,&info1_.eRecoCleaned[1]            ,"eSR2RecoCleaned1/F");
+	tree_->Branch("eSR3RecoCleaned1"              ,&info1_.eRecoCleaned[2]            ,"eSR3RecoCleaned1/F");
+	tree_->Branch("eSR4RecoCleaned1"              ,&info1_.eRecoCleaned[3]            ,"eSR4RecoCleaned1/F");
+	tree_->Branch("eSR5RecoCleaned1"              ,&info1_.eRecoCleaned[4]            ,"eSR5RecoCleaned1/F");
 	tree_->Branch("converted1"              ,&info1_.converted            ,"converted1/I");
 	tree_->Branch("showerMax1"              ,&info1_.showerMax            ,"showerMax1/I");
 	tree_->Branch("noPhiCrack1"              ,&info1_.noPhiCrack             ,"noPhiCrack1/B");
+	tree_->Branch("noPhiCrackPCA1"              ,&info1_.noPhiCrackPCA             ,"noPhiCrackPCA1/B");
 
-	//tree_->Branch("eRecoCleaned1"              ,&info1_.eRecoCleaned            ,"eRecoCleaned1/F");
+	tree_->Branch("xPCA1"              ,&info1_.xPCA            ,"xPCA1/F");
+	tree_->Branch("yPCA1"              ,&info1_.yPCA            ,"yPCA1/F");
+	tree_->Branch("zPCA1"              ,&info1_.zPCA            ,"zPCA1/F");
+	tree_->Branch("etaPCA1"              ,&info1_.etaPCA            ,"etaPCA1/F");
+	tree_->Branch("phiPCA1"              ,&info1_.phiPCA            ,"phiPCA1/F");
+
 
 	if (!singleGamma_){
 	  //photon 2
 	  tree_->Branch("isValid2"              ,&info2_.isValid             ,"isValid2/B");
+	tree_->Branch("invalidDetid2"              ,&info2_.invalidDetid             ,"invalidDetid2/B");
+	tree_->Branch("invalidNeighbour2"              ,&info2_.invalidNeighbour             ,"invalidNeighbour2/B");
 	  tree_->Branch("etaTrue2"              ,&info2_.etaTrue             ,"etaTrue2/F");
+	  tree_->Branch("etadetTrue2"              ,&info2_.etadetTrue             ,"etadetTrue2/F");
 	  tree_->Branch("phiTrue2"              ,&info2_.phiTrue             ,"phiTrue2/F");
 	  tree_->Branch("dRTrue2"              ,&info2_.dRTrue            ,"dRTrue2/F");
 	  tree_->Branch("eTrue2"              ,&info2_.eTrue            ,"eTrue2/F");
@@ -337,6 +413,7 @@ HGCPhotonReco::HGCPhotonReco(const edm::ParameterSet& iConfig):
 	  tree_->Branch("etaSC2"              ,&info2_.etaSC             ,"etaSC2/F");
 	  tree_->Branch("phiSC2"              ,&info2_.phiSC             ,"phiSC2/F");
 	  tree_->Branch("etaReco2"              ,&info2_.etaReco             ,"etaReco2/F");
+	  tree_->Branch("etadetReco2"              ,&info2_.etadetReco             ,"etadetReco2/F");
 	  tree_->Branch("phiReco2"              ,&info2_.phiReco             ,"phiReco2/F");
 	  tree_->Branch("etaSeed2"              ,&info2_.etaSeed             ,"etaSeed2/F");
 	  tree_->Branch("phiSeed2"              ,&info2_.phiSeed             ,"phiSeed2/F");
@@ -353,9 +430,20 @@ HGCPhotonReco::HGCPhotonReco(const edm::ParameterSet& iConfig):
 	  tree_->Branch("eSR3Reco2"              ,&info2_.eReco[2]            ,"eSR3Reco2/F");
 	  tree_->Branch("eSR4Reco2"              ,&info2_.eReco[3]            ,"eSR4Reco2/F");
 	  tree_->Branch("eSR5Reco2"              ,&info2_.eReco[4]            ,"eSR5Reco2/F");
-	  tree_->Branch("converted2"              ,&info2_.converted            ,"converted2/I");
+	tree_->Branch("eSR1RecoCleaned2"              ,&info2_.eRecoCleaned[0]            ,"eSR1RecoCleaned2/F");
+	tree_->Branch("eSR2RecoCleaned2"              ,&info2_.eRecoCleaned[1]            ,"eSR2RecoCleaned2/F");
+	tree_->Branch("eSR3RecoCleaned2"              ,&info2_.eRecoCleaned[2]            ,"eSR3RecoCleaned2/F");
+	tree_->Branch("eSR4RecoCleaned2"              ,&info2_.eRecoCleaned[3]            ,"eSR4RecoCleaned2/F");
+	tree_->Branch("eSR5RecoCleaned2"              ,&info2_.eRecoCleaned[4]            ,"eSR5RecoCleaned2/F");	  tree_->Branch("converted2"              ,&info2_.converted            ,"converted2/I");
 	  tree_->Branch("showerMax2"              ,&info2_.showerMax            ,"showerMax2/I");
 	  tree_->Branch("noPhiCrack2"              ,&info2_.noPhiCrack             ,"noPhiCrack2/B");
+	  tree_->Branch("noPhiCrackPCA2"              ,&info2_.noPhiCrackPCA             ,"noPhiCrackPCA2/B");
+
+	tree_->Branch("xPCA2"              ,&info2_.xPCA            ,"xPCA2/F");
+	tree_->Branch("yPCA2"              ,&info2_.yPCA            ,"yPCA2/F");
+	tree_->Branch("zPCA2"              ,&info2_.zPCA            ,"zPCA2/F");
+	tree_->Branch("etaPCA2"              ,&info2_.etaPCA            ,"etaPCA2/F");
+	tree_->Branch("phiPCA2"              ,&info2_.phiPCA            ,"phiPCA2/F");
 	}
 	if(iConfig.exists("hgcOverburdenParamFile"))
 	  {
@@ -381,6 +469,29 @@ HGCPhotonReco::HGCPhotonReco(const edm::ParameterSet& iConfig):
 				     nLayers_,0,nLayers_,
 				     1000,0,10000);
 
+	dxMaxTruth_ = fs_->make<TH1F>("dxMaxTruth_",";#Deltax(truth,cell) (mm);cells",100,-50,50);
+	dyMaxTruth_ = fs_->make<TH1F>("dyMaxTruth_",";#Deltay(truth,cell) (mm);cells",100,-50,50);
+	dzMaxTruth_ = fs_->make<TH1F>("dzMaxTruth_",";#Deltaxz(truth,cell) (mm);cells",100,-1,1);
+	dphiMaxTruthvsLayer_ = fs_->make<TH2F>("dphiMaxTruthvsLayer_",";layer;#Delta#phi(truth,cell);cells",nLayers_,0,nLayers_,100,-1,1);
+
+	for (unsigned idx(0);idx<9;++idx){
+	  std::ostringstream label;
+	  label << "dxMaxNeigh_" << idx;
+	  dxMaxNeigh_[idx] = fs_->make<TH1F>(label.str().c_str(),";#Deltax(neigh,cell) (mm);cells",100,-50,50);
+	  label.str("");
+	  label << "dyMaxNeigh_" << idx;
+	  dyMaxNeigh_[idx] = fs_->make<TH1F>(label.str().c_str(),";#Deltay(neigh,cell) (mm);cells",100,-50,50);
+	  label.str("");
+	  label << "dzMaxNeigh_" << idx;
+	  dzMaxNeigh_[idx] = fs_->make<TH1F>(label.str().c_str(),";#Deltaxz(neigh,cell) (mm);cells",100,-1,1);
+	}
+
+	for (unsigned iL(0);iL<nLayers_;++iL){
+	  std::ostringstream label;
+	  label << "dRmin_" << iL;
+	  dRmin_[iL] = fs_->make<TH1F>(label.str().c_str(),";dRmin;showers",
+				       100,0,0.5);
+	}
 	/*
 	for (unsigned iL(0);iL<nLayers_;++iL){
 	  std::ostringstream label;
@@ -429,6 +540,20 @@ double HGCPhotonReco::DeltaPhi(const double & phi1, const double & phi2){
   return dphi;
 }
 
+void HGCPhotonReco::fillzPositions(const edm::PtrVector<HGCRecHit>& rechitvec){
+  for (unsigned iH(0); iH<rechitvec.size(); ++iH){
+    const HGCRecHit & lHit = *(rechitvec[iH]);
+    const HGCEEDetId & hgcid = lHit.detid();
+    unsigned layer = hgcid.layer()-1;
+    if (layer >= nLayers_) {
+      std::cout << " -- Warning! Wrong layer number: " << layer << " max is set to " << nLayers_ << std::endl;
+      continue;
+    }
+    GlobalPoint cellPos = hgcEEGeom_->getPosition(hgcid);
+    zPos_.insert(std::pair<unsigned,double>(layer,fabs(cellPos.z())));
+    if (zPos_.size()==nLayers_) break;
+  }
+}
 
 void
 HGCPhotonReco::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
@@ -443,9 +568,9 @@ HGCPhotonReco::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   iEvent.getByToken(endcapSuperClusterCollection_,HGCEESCs);
   const edm::PtrVector<reco::SuperCluster>& sclusters = HGCEESCs->ptrVector();
   
-  //Handle<edm::View<reco::PFCluster> > HGCEEClusters;
-  //iEvent.getByToken(endcapClusterCollection_,HGCEEClusters);
-  //const edm::PtrVector<reco::PFCluster>& clusters = HGCEEClusters->ptrVector();
+  Handle<edm::View<reco::PFCluster> > HGCEEClusters;
+  iEvent.getByToken(endcapClusterCollection_,HGCEEClusters);
+  const edm::PtrVector<reco::PFCluster>& clusters = HGCEEClusters->ptrVector();
   
   Handle<edm::View<reco::GenParticle> > genParts;
   iEvent.getByToken(genParticlesCollection_,genParts);
@@ -454,6 +579,18 @@ HGCPhotonReco::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   Handle<edm::View<HGCRecHit> > eeRecHits;
   iEvent.getByToken(endcapRecHitCollection_, eeRecHits);
   const edm::PtrVector<HGCRecHit>& rechitvec = eeRecHits->ptrVector();
+
+  if (zPos_.size()!=nLayers_) {
+    fillzPositions(rechitvec);
+    std::cout << " -- z Positions of layers: " << std::endl;
+    for (unsigned iL(0); iL<nLayers_;++iL){
+      std::cout << " ----- " << iL << " " << zPos_[iL] << std::endl;
+    }
+  }
+
+
+  PCAShowerAnalysis pcaShowerAnalysis1(iEvent,iSetup);
+  PCAShowerAnalysis pcaShowerAnalysis2(iEvent,iSetup);
 
   /*	
   //fill hit histos
@@ -510,6 +647,7 @@ HGCPhotonReco::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
       if (gens[igp]->mother()) std::cout << " mother " << (gens[igp]->mother()->pdgId());
       std::cout <<  std::endl;
     }
+    //std::cout << " theta check: " << gens[igp]->theta() << " " << 2*atan(exp(-1.*gens[igp]->eta())) << std::endl;
 
     if (photon1.isNull()) {
       photon1 = gens[igp];
@@ -578,14 +716,16 @@ HGCPhotonReco::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
     //fill SC info
     info1_.isValid = true;
     info1_.fillTruth(photon1, SimTk, SimVtx);  
-    info1_.fillSC(sclusters[idx1]);
+    info1_.fillSC(sclusters[idx1],pcaShowerAnalysis1);
+    info1_.eSC = resumEmEnergyTest(sclusters[idx1],clusters);
     getPhotonEnergy(rechitvec,info1_);
   }
   if (!singleGamma_ && isInFid(photon2)){
     if (debug_) std::cout << " -------------------------- Photon2: " << std::endl;
     info2_.isValid = true;
     info2_.fillTruth(photon2, SimTk, SimVtx);
-    info2_.fillSC(sclusters[idx2]);
+    info2_.fillSC(sclusters[idx2],pcaShowerAnalysis2);
+    info2_.eSC = resumEmEnergyTest(sclusters[idx2],clusters);
     getPhotonEnergy(rechitvec,info2_);
   }
   
@@ -602,18 +742,54 @@ HGCPhotonReco::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   return ;
 }
 
+float HGCPhotonReco::resumEmEnergyTest( const edm::Ptr<reco::SuperCluster>& sc,const edm::PtrVector<reco::PFCluster>& clusters){
+  
+  float total=0;
+  for (unsigned int ic =0 ; ic < sc->clusters().size() ; ic++){
+    //	//std::cout << "TEST, sc constituent em energies " << (sc->clusters())[ic]->energy() << std::endl;
+    //for (unsigned int j =0 ; j < clusters.size() ; j++){
+      
+      double clus_eta = sc->clusters()[ic]->eta();
+      double clus_phi = sc->clusters()[ic]->phi();
+      
+      if (fabs(clus_eta - sc->seed()->eta())>0.025) continue;
+      if (fabs(deltaPhi(clus_phi , sc->seed()->phi()))>0.11) continue;
+      
+      //if (clusters[j]->position()==(sc->clusters())[ic]->position()) {
+	//		//std::cout << "TEST, corresponding cluster " << (clusters[j]->emEnergy()) << std::endl;
+      total = total +(sc->clusters()[ic]->energy());
+      //break;
+      //}
+      //}
+  
+  }
+  
+  return total;
+}
+
 bool HGCPhotonReco::isInFid(const edm::Ptr<reco::GenParticle> & aPhoton){
-  return fabs(aPhoton->eta())>1.4 &&  fabs(aPhoton->eta())<3.0 && ((!singleGamma_ && aPhoton->pt() > 20) || singleGamma_);
+  return fabs(aPhoton->eta())>1.4 &&  fabs(aPhoton->eta())<3.0;// && ((!singleGamma_ && aPhoton->pt() > 20) || singleGamma_);
 }
 
 void HGCPhotonReco::getPhotonEnergy(const edm::PtrVector<HGCRecHit>& rechitvec,info_t & info){
 
-  const double & phimax = info.phiTrue;//SC;
-  const double & etamax = info.etaTrue;//SC;
-  //get central position for 3x3 or 5x5 arrays
+  double phimax = info.phiTrue;//SC;
+  double etamax = info.etaTrue;//SC;
+  getPhotonEnergy(rechitvec,info,phimax,etamax,false);
+
+  phimax = info.phiPCA;//SC;
+  etamax = info.etaPCA;//SC;
+  getPhotonEnergy(rechitvec,info,phimax,etamax,true);
+
+}
+
+void HGCPhotonReco::getPhotonEnergy(const edm::PtrVector<HGCRecHit>& rechitvec,info_t & info,const double & phimax, const double & etamax, const bool isPCA){
+  
+ //get central position for 3x3 or 5x5 arrays
   std::vector<HGCEEDetId> detidmax;
   detidmax.resize(nLayers_,HGCEEDetId());
 
+  //from rechits
   getMaximumCell(rechitvec,phimax,etamax,detidmax);
   //if (debug_) std::cout << " -- True eta-phi " << etamax << " " << phimax << std::endl;
   //for (unsigned iL(0);iL<nLayers_;++iL){//loop on layers
@@ -630,25 +806,73 @@ void HGCPhotonReco::getPhotonEnergy(const edm::PtrVector<HGCRecHit>& rechitvec,i
   const HGCalTopology& topology = hgcEEGeom_->topology();
   double maxE = 0;
   for (unsigned iL(0);iL<nLayers_;++iL){//loop on layers
+    //get detidmax
+    double theta = 2*atan(exp(-1.*etamax));
+    double r = fabs((etamax/fabs(etamax)*zPos_[iL]-truthVtx_.z())/cos(theta));
+    GlobalPoint max(r*sin(theta)*cos(phimax)+truthVtx_.x(),r*sin(theta)*sin(phimax)+truthVtx_.y(),etamax/fabs(etamax)*zPos_[iL]);
+    //detidmax[iL] = hgcEEGeom_->getClosestCell(max);
+    /*const HGCEEDetId & detidcheck = hgcEEGeom_->getClosestCell(max);
+    if (debug_ && detidcheck != detidmax[iL]){
+      std::cout << " - layer " << iL << std::endl
+		<< " -- from rechits: " << detidmax[iL] << " " 
+		<< (hgcEEGeom_->getPosition(detidmax[iL])).x() << " "
+		<< (hgcEEGeom_->getPosition(detidmax[iL])).y() << " "
+		<< (hgcEEGeom_->getPosition(detidmax[iL])).z() << std::endl
+		<< " -- from geom: " << detidcheck << " " 
+		<< (hgcEEGeom_->getPosition(detidcheck)).x() << " "
+		<< (hgcEEGeom_->getPosition(detidcheck)).y() << " "
+		<< (hgcEEGeom_->getPosition(detidcheck)).z() << std::endl
+		<< " -- diff from truth: " << ((hgcEEGeom_->getPosition(detidcheck)).x()-max.x())*10 << " " << 10*((hgcEEGeom_->getPosition(detidcheck)).y()-max.y()) << " " << 10*((hgcEEGeom_->getPosition(detidcheck)).z()-max.z())
+		<< std::endl;
+		}*/
+    if (!topology.valid(detidmax[iL]) || detidmax[iL].det()!=DetId::Forward || detidmax[iL].subdetId()!=HGCEE) {
+      info.invalidDetid=true;
+      continue;
+    }
     std::vector<double> Exy;
     Exy.resize(9,0);
-    //std::cout << " -- detidmax[" << iL << "=" << detidmax[iL] << std::endl;
-    if (topology.valid(detidmax[iL])) fillNeighbours(detidmax[iL],Exy,info);
-    else continue;
+    std::vector<double> Exyetacor;
+    Exyetacor.resize(9,0);
+    if (debug_) std::cout << " -- detidmax[" << iL << "=" << detidmax[iL] << std::endl;
+    fillNeighbours(detidmax[iL],Exy,Exyetacor,info,isPCA);
+    const GlobalPoint & center = hgcEEGeom_->getPosition(detidmax[iL]);
+    if (!info.converted) {
+      dxMaxTruth_->Fill((center.x()-max.x())*10);
+      dyMaxTruth_->Fill((center.y()-max.y())*10);
+      dzMaxTruth_->Fill((center.z()-max.z())*10);
+      dphiMaxTruthvsLayer_->Fill(iL,DeltaPhi(center.phi(),max.phi()));
+    }
+
     double etot = 0;
     for (unsigned idx(0);idx<9;++idx){
       etot += Exy[idx];
-      info.eReco[2] += Exy[idx]*absWeight(iL);
+      if (!isPCA) {
+	info.eReco[2] += Exy[idx]*absWeight(iL);
+	info.eReco[3] += Exyetacor[idx]*absWeight(iL);
+      }
+      else info.eRecoCleaned[2] += Exy[idx]*absWeight(iL);
     }
     if (etot>maxE){
       maxE = etot;
-      info.showerMax = iL;
+      if (!isPCA) info.showerMax = iL;
     }
   }
   GlobalPoint cellPos = hgcEEGeom_->getPosition(detidmax[info.showerMax]);
+  if (!isPCA) {
+    info.zShowerMax = cellPos.z();
+    double theta = 2*atan(exp(-1.*fabs(info.etaTrue)));
+    double thetadet =atan((info.zShowerMax-info.zvtxTrue)*tan(theta)/info.zShowerMax); 
+    info.etadetTrue = info.zShowerMax/fabs(info.zShowerMax)*-1.*log(tan(thetadet/2.));
+    //std::cout << info.zShowerMax 
+    //<< " " << info.etaTrue
+    //	      << " " << theta 
+    //	      << " " << thetadet
+    //	      << " " << info.etadetTrue
+    //	      << std::endl;
+  }
   //getEnergyWeightedPosition(rechitvec,detidmax,recoPos,recoE);
   //getTotalEnergy(rechitvec,recoPos,info);
-  info.correctForEtaDep(ROOT::Math::XYZVector(cellPos.x(),cellPos.y(),cellPos.z()));
+  info.correctForEtaDep(ROOT::Math::XYZVector(cellPos.x(),cellPos.y(),cellPos.z()),isPCA);
 }
 
 void HGCPhotonReco::getMaximumCell(const edm::PtrVector<HGCRecHit>& rechitvec,const double & phimax,const double & etamax,std::vector<HGCEEDetId> & detidmax){
@@ -687,6 +911,10 @@ void HGCPhotonReco::getMaximumCell(const edm::PtrVector<HGCRecHit>& rechitvec,co
     
   }//loop on rechits
   
+  for (unsigned iL(0);iL<nLayers_;++iL){
+    dRmin_[iL]->Fill(dRmin[iL]);
+  }
+
 }
 
 /*void HGCPhotonReco::getEnergyWeightedPosition(
@@ -756,7 +984,9 @@ void HGCPhotonReco::getMaximumCell(const edm::PtrVector<HGCRecHit>& rechitvec,co
 */
 void HGCPhotonReco::fillNeighbours(const HGCEEDetId & detidmax,
 				   std::vector<double> & Exy,
-				   info_t & info){
+				   std::vector<double> & Exyetacor,
+				   info_t & info,
+				   bool isPCA){
 
   const HGCalTopology& topology = hgcEEGeom_->topology();
   std::vector<HGCEEDetId> neighbours;
@@ -785,22 +1015,36 @@ void HGCPhotonReco::fillNeighbours(const HGCEEDetId & detidmax,
     if (topology.valid(tmp)) neighbours[8] = HGCEEDetId(tmp);
   }
 
+  GlobalPoint center = hgcEEGeom_->getPosition(detidmax);
+
   for (unsigned idx(0);idx<9;++idx){
-    if (!topology.valid(neighbours[idx])) {
-      info.noPhiCrack = false;
+    if (!topology.valid(neighbours[idx]) || neighbours[idx].det()!=DetId::Forward || neighbours[idx].subdetId()!=HGCEE) {
+      if (!isPCA) info.invalidNeighbour = true;
+      else info.noPhiCrackPCA = false;
       continue;
     }
     HGCRecHitCollection::const_iterator theHit = recHits_->find(neighbours[idx]);
     if (theHit==recHits_->end()) continue;
-    if (neighbours[idx].det()!=DetId::Forward || neighbours[idx].subdetId()!=HGCEE) continue;
     GlobalPoint cellPos = hgcEEGeom_->getPosition(neighbours[idx]);
-    if ((neighbours[idx].sector()*neighbours[idx].subsector()) != (detidmax.sector()*detidmax.subsector())) info.noPhiCrack = false;
+    if ((neighbours[idx].sector()*neighbours[idx].subsector()) != (detidmax.sector()*detidmax.subsector())) {
+      if (!isPCA) info.noPhiCrack = false;
+      else info.noPhiCrackPCA = false;
+    }
     double posx = cellPos.x();
     double posy = cellPos.y();
     double posz = cellPos.z();
+    dxMaxNeigh_[idx]->Fill((posx-center.x())*10.);
+    dyMaxNeigh_[idx]->Fill((posy-center.y())*10.);
+    dzMaxNeigh_[idx]->Fill((posz-center.z())*10.);
+    if (fabs(posx-center.x())>sqrt(2) ||
+	fabs(posy-center.y())>sqrt(2)){
+      if (!isPCA) info.invalidNeighbour = true;
+      else info.noPhiCrackPCA = false;
+    }
     double costheta = fabs(posz)/sqrt(posz*posz+posx*posx+posy*posy);
-    double energy = theHit->energy()/mipE_*costheta;//in MIP
+    double energy = theHit->energy()/mipE_;//*costheta;//in MIP
     Exy[idx] = energy;
+    Exyetacor[idx] = energy*costheta;
   }
 }
 
@@ -933,9 +1177,9 @@ HGCPhotonReco::endJob()
 	void 
 HGCPhotonReco::beginRun(edm::Run const&, edm::EventSetup const& iSetup)
 {
-	edm::ESHandle<HGCalGeometry> hgcGeo;
-	iSetup.get<IdealGeometryRecord>().get(geometrySource_[0],hgcGeo);
-	hgcEEGeom_=hgcGeo.product();
+  edm::ESHandle<HGCalGeometry> hgcGeo;
+  iSetup.get<IdealGeometryRecord>().get(geometrySource_[0],hgcGeo);
+  hgcEEGeom_=hgcGeo.product();
 }
 
 // ------------ method called when ending the processing of a run  ------------
