@@ -36,7 +36,7 @@ double calibratedE(const double Etot, const double eta){
 
 int plotReso() {
 
-  std::string outfile = "InfoPlots_maxFromHit";
+  std::string outfile = "InfoPlots_0_maxFromTruth";
   //std::string outfile = "InfoPlots_140";
   //std::string outfile = "InfoPlots_singleGamma";
 
@@ -44,9 +44,11 @@ int plotReso() {
 
   std::string cut1 = "converted1==0 && eTrue1/cosh(etaTrue1)>40 && TMath::Abs(etaTrue1)>1.6 && TMath::Abs(etaTrue1)<2.8 && (TMath::Nint(TMath::Abs(phiTrue1)/(2*TMath::Pi())*360.)%20<9 || TMath::Nint(TMath::Abs(phiTrue1)/(2*TMath::Pi())*360.)%20>11) && invalidDetid1==0 && invalidNeighbour1==0";
   std::string cut2 = "converted2==0 && eTrue2/cosh(etaTrue2)>40 && TMath::Abs(etaTrue2)>1.6 && TMath::Abs(etaTrue2)<2.8 && (TMath::Nint(TMath::Abs(phiTrue2)/(2*TMath::Pi())*360.)%20<9 || TMath::Nint(TMath::Abs(phiTrue2)/(2*TMath::Pi())*360.)%20>11) && invalidDetid2==0 && invalidNeighbour2==0";
+  std::string cut1pca = "converted1==0 && eTrue1/cosh(etaTrue1)>40 && TMath::Abs(etaTrue1)>1.6 && TMath::Abs(etaTrue1)<2.8 && (TMath::Nint(TMath::Abs(phiTrue1)/(2*TMath::Pi())*360.)%20<9 || TMath::Nint(TMath::Abs(phiTrue1)/(2*TMath::Pi())*360.)%20>11) && invalidDetidPCA1==0 && invalidNeighbourPCA1==0";
+  std::string cut2pca = "converted2==0 && eTrue2/cosh(etaTrue2)>40 && TMath::Abs(etaTrue2)>1.6 && TMath::Abs(etaTrue2)<2.8 && (TMath::Nint(TMath::Abs(phiTrue2)/(2*TMath::Pi())*360.)%20<9 || TMath::Nint(TMath::Abs(phiTrue2)/(2*TMath::Pi())*360.)%20>11) && invalidDetidPCA2==0 && invalidNeighbourPCA2==0";
 
-  TFile *fin = TFile::Open("Truth_Hgg_0pu_maxFromHit.root");
-  //TFile *fin = TFile::Open("Truth_singleGamma_0pu.root");
+  TFile *fin = TFile::Open("Truth_Hgg_0pu_maxFromTruth.root");
+  //TFile *fin = TFile::Open("test.root");
   if (!fin) return 1;
   fin->cd("hgg");
 
@@ -57,7 +59,7 @@ int plotReso() {
     return 1;
   }
 
-  const unsigned nV = 27;
+  const unsigned nV = 30;
   std::string var[nV] = {
     "xvtxTrue","yvtxTrue","zvtxTrue",
     "dRTrue",
@@ -67,8 +69,8 @@ int plotReso() {
     "etaWidth","phiWidth","clustersSize","nClusters09",
     "eSeedOvereSC","showerMax",
     "eSR3RecoOvereTrue",
-    "xPCA","yPCA","zPCA","eSR4RecoOvereTrue",
-    "isValid","invalidDetid","invalidNeighbour","noPhiCrack"
+    "xPCA","yPCA","zPCA","eSR4RecoOvereTrue","eSR3RecoCleanedOvereTrue","eSR3RecoCleanedOvereTrue",
+    "isValid","invalidDetid","invalidNeighbour","noPhiCrack","noPhiCrackPCA"
   };
   std::string var1[nV];
   std::string var2[nV];
@@ -141,17 +143,17 @@ int plotReso() {
   h2_pfx->Fit("pol1","RI","same",100,400);
 
   TF1 *fit3 = h2_pfx->GetFunction("pol1");
-  if (!fit3) return 1;
-  double slope3 = fit3->GetParameter(1);
-  double offset3 = 0;//fit3->GetParameter(0);
+  //if (!fit3) return 1;
+  double slope3; //= fit3->GetParameter(1);
+  double offset3; //= 0;//fit3->GetParameter(0);
 
   TLatex lat;
   char buf[100];
   double max = h2->GetYaxis()->GetBinLowEdge(h2->GetYaxis()->GetNbins());
-  sprintf(buf,"a = %3.2f #pm %3.2f",fit3->GetParameter(0),fit3->GetParError(0));
+  sprintf(buf,"a = %3.2f #pm %3.2f",fit3?fit3->GetParameter(0):0,fit3?fit3->GetParError(0):0);
   lat.DrawLatex(50,max*0.8,"Ereco = a + b #times Egen");
   lat.DrawLatex(50,max*0.7,buf);
-  sprintf(buf,"b = %3.2f #pm %3.2f",slope3,fit3->GetParError(1));
+  sprintf(buf,"b = %3.2f #pm %3.2f",slope3,fit3?fit3->GetParError(1):0);
   lat.DrawLatex(50,max*0.6,buf);
 
   myc[0]->Update();
@@ -185,26 +187,28 @@ int plotReso() {
   h2eta_pfx->Fit("pol1","","same");
 
   TF1 *fiteta3 = h2eta_pfx->GetFunction("pol1");
-  if (!fiteta3) return 1;
+  //if (!fiteta3) return 1;
 
-  double offset3eta = fiteta3->GetParameter(0);
-  double slope3eta = fiteta3->GetParameter(1);
+  double offset3eta = fiteta3?fiteta3->GetParameter(0):0;
+  double slope3eta = fiteta3?fiteta3->GetParameter(1):1;
   //double p23 = fit3->GetParameter(2);
   max = 1.2;//h2eta->GetYaxis()->GetBinLowEdge(h2eta->GetYaxis()->GetNbins());
-  sprintf(buf,"a = %3.2f #pm %3.2f",fiteta3->GetParameter(0),fiteta3->GetParError(0));
+  sprintf(buf,"a = %3.2f #pm %3.2f",fiteta3?fiteta3->GetParameter(0):0,fiteta3?fiteta3->GetParError(0):0);
   lat.DrawLatex(50,max*0.8,"Ereco = a + b #times Egen");
   lat.DrawLatex(50,max*0.7,buf);
-  sprintf(buf,"b = %3.2f #pm %3.2f",slope3eta,fiteta3->GetParError(1));
+  sprintf(buf,"b = %3.2f #pm %3.2f",slope3eta,fiteta3?fiteta3->GetParError(1):0);
   lat.DrawLatex(50,max*0.6,buf);
 
   myc[1]->Update();
   myc[1]->Print((outfile+".pdf").c_str());
 
   myc[2]->cd();
-  //TH2F *h2pca = new TH2F("h2pca",";egen (GeV);ereco 3x3 (mips); photons",60,0,600,60,0,600);
-  TH2F *h2pca = new TH2F("h2pca",";egen (GeV);ereco 3x3 (mips); photons",60,0,600,1000,0,50000);
-  t->Draw("eSR3RecoCleaned1:eTrue1>>h2pca",cut1.c_str());
-  t->Draw("eSR3RecoCleaned2:eTrue2>>+h2pca",cut2.c_str());
+  TH2F *h2pca = new TH2F("h2pca",";egen (GeV);ereco 3x3 (mips); photons",60,0,600,60,0,600);
+  t->Draw("calibratedE(eSR3RecoCleaned1,etaTrue1):eTrue1>>h2pca",cut1pca.c_str());
+  t->Draw("calibratedE(eSR3RecoCleaned2,etaTrue2):eTrue2>>+h2pca",cut2pca.c_str());
+  //TH2F *h2pca = new TH2F("h2pca",";egen (GeV);ereco 3x3 (mips); photons",60,0,600,1000,0,50000);
+  //t->Draw("eSR3RecoCleaned1:eTrue1>>h2pca",cut1.c_str());
+  //t->Draw("eSR3RecoCleaned2:eTrue2>>+h2pca",cut2.c_str());
   h2pca->Draw("colz");
 
   h2pca->ProfileX();
@@ -216,32 +220,32 @@ int plotReso() {
   h2pca_pfx->Fit("pol1","RI","same",100,400);
 
   TF1 *fit3pca = h2pca_pfx->GetFunction("pol1");
-  if (!fit3pca) return 1;
-  double slope3pca = fit3pca->GetParameter(1);
-  double offset3pca = 0;//fit3pca->GetParameter(0);
+  //if (!fit3pca) return 1;
+  //double slope3pca = fit3pca->GetParameter(1);
+  //double offset3pca = 0;//fit3pca->GetParameter(0);
 
-  max = h2pca->GetYaxis()->GetBinLowEdge(h2pca->GetYaxis()->GetNbins());
-  sprintf(buf,"a = %3.2f #pm %3.2f",fit3pca->GetParameter(0),fit3pca->GetParError(0));
-  lat.DrawLatex(50,max*0.8,"Ereco = a + b #times Egen");
-  lat.DrawLatex(50,max*0.7,buf);
-  sprintf(buf,"b = %3.2f #pm %3.2f",slope3pca,fit3pca->GetParError(1));
-  lat.DrawLatex(50,max*0.6,buf);
+  //max = h2pca->GetYaxis()->GetBinLowEdge(h2pca->GetYaxis()->GetNbins());
+  //sprintf(buf,"a = %3.2f #pm %3.2f",fit3pca->GetParameter(0),fit3pca->GetParError(0));
+  //lat.DrawLatex(50,max*0.8,"Ereco = a + b #times Egen");
+  //lat.DrawLatex(50,max*0.7,buf);
+  //sprintf(buf,"b = %3.2f #pm %3.2f",slope3pca,fit3pca->GetParError(1));
+  // lat.DrawLatex(50,max*0.6,buf);
 
   myc[2]->Update();
   myc[2]->Print((outfile+".pdf").c_str());
 
 
   myc[3]->cd();
-  TH2F *h2pcaeta = new TH2F("h2pcaeta",";#eta;ereco/egen; photons",30,1.5,3,100,0,2);
+  TH2F *h2pcaeta = new TH2F("h2pcaeta",";#eta;ereco/egen; photons",60,-3,3,100,0,2);
 
   cor.str("");
-  cor << "(eSR3RecoCleaned1-" << offset3pca << ")/(" << slope3pca << "*eTrue1):TMath::Abs(etaTrue1)>>h2pcaeta";
-  //cor << "(calibratedE(eSR3Reco1,etaTrue1)-" << offset3 << ")/(" << slope3 << "*eTrue1):TMath::Abs(etaTrue1)>>h2pcaeta";
-  t->Draw(cor.str().c_str(),cut1.c_str());
+  //cor << "(eSR3RecoCleaned1-" << offset3pca << ")/(" << slope3pca << "*eTrue1):TMath::Abs(etaTrue1)>>h2pcaeta";
+  cor << "calibratedE(eSR3RecoCleaned1,etaTrue1)/eTrue1:etaTrue1>>h2pcaeta";
+  t->Draw(cor.str().c_str(),cut1pca.c_str());
   cor.str("");
-  cor << "(eSR3RecoCleaned2-" << offset3pca << ")/(" << slope3pca << "*eTrue2):TMath::Abs(etaTrue2)>>+h2pcaeta";
-  //cor << "(calibratedE(eSR3Reco2,etaTrue2)-" << offset3 << ")/(" << slope3 << "*eTrue2):TMath::Abs(etaTrue2)>>+h2pcaeta";
-  t->Draw(cor.str().c_str(),cut2.c_str());
+  //cor << "(eSR3RecoCleaned2-" << offset3pca << ")/(" << slope3pca << "*eTrue2):TMath::Abs(etaTrue2)>>+h2pcaeta";
+  cor << "calibratedE(eSR3RecoCleaned2,etaTrue2)/eTrue2:etaTrue2>>+h2pcaeta";
+  t->Draw(cor.str().c_str(),cut2pca.c_str());
   h2pcaeta->Draw("colz");
 
   h2pcaeta->ProfileX();
@@ -254,8 +258,8 @@ int plotReso() {
   h2pcaeta_pfx->Draw("PEsame");
   h2pcaeta_pfx->Fit("pol1","","same");
 
-  TF1 *fiteta3pca = h2pcaeta_pfx->GetFunction("pol1");
-  if (!fiteta3pca) return 1;
+  //TF1 *fiteta3pca = h2pcaeta_pfx->GetFunction("pol1");
+  //if (!fiteta3pca) return 1;
 
   //double p03 = fit3->GetParameter(0);
   //double p13 = fit3->GetParameter(1);
@@ -354,10 +358,25 @@ int plotReso() {
   myc[4]->Print((outfile+"_erecooveregenvsphi.pdf").c_str());
 
   myc[5]->cd();
-  TH2F *hetaphi = new TH2F("hetaphi",";#phi;|#eta|; photons",36,-3.1416,3.1416,15,1.5,3);
-  t->Draw("TMath::Abs(etaTrue1):phiTrue1>>hetaphi",cut1.c_str());//,"isValid1==1 && converted1==0 && dRTrue1<0.05 && TMath::Abs(etaTrue1)>1.5 && TMath::Abs(etaTrue1)<2.7 && TMath::Abs(etaReco1-etaTrue1)<0.1 && eSeed1/eSC1>0.95 && eSeed1/eSC1<1.01 && eSR3Reco1/eTrue1<0.9");
-  t->Draw("TMath::Abs(etaTrue2):phiTrue2>>+hetaphi",cut2.c_str());//,"isValid2==1 && converted2==0 && dRTrue2<0.05 && TMath::Abs(etaTrue2)>1.5 && TMath::Abs(etaTrue2)<2.7 && TMath::Abs(etaReco2-etaTrue2)<0.1 && eSeed2/eSC2>0.95 && eSeed2/eSC2<1.01 && eSR3Reco2/eTrue2<0.9");
-  hetaphi->Draw("colz");
+  TH2F *h2phipca = new TH2F("h2phipca",";#phi;ereco 3x3/egen; photons",360,-3.1416,3.1416,100,0,2);
+  cor.str("");
+  cor << "calibratedE(eSR3RecoCleaned1,etaTrue1)/eTrue1:phiTrue1>>h2phipca";
+  t->Draw(cor.str().c_str(),cut1pca.c_str());
+  cor.str("");
+  cor << "calibratedE(eSR3RecoCleaned2,etaTrue2)/eTrue2:phiTrue2>>+h2phipca";
+  t->Draw(cor.str().c_str(),cut2pca.c_str());
+
+  h2phipca->Draw("colz");
+  h2phipca->ProfileX();
+  TProfile *h2phipca_pfx = (TProfile*)gDirectory->Get("h2phipca_pfx");
+  h2phipca_pfx->SetMarkerStyle(22);
+  h2phipca_pfx->SetMarkerColor(1);
+  h2phipca_pfx->Draw("PEsame");
+
+  for (unsigned is(0); is<18;++is){
+    l[is]->Draw();
+  }
+
   myc[5]->Update();
   myc[5]->Print((outfile+".pdf").c_str());
 
@@ -373,6 +392,12 @@ int plotReso() {
   var1[4] = cor.str();
   
   cor.str("");
+  //cor << "((eSR3Reco1-" << offset3 << ")/(" << slope3 << "*eTrue1)-" << offset3eta << ")/" << slope3eta;
+  //cor << "(calibratedE(eSR3Reco1,etaTrue1)-" << offset3 << ")/(" << slope3 << "*eTrue1)";
+  cor << "calibratedE(eSR3RecoCleaned1,etaTrue1)/eTrue1";
+  var1[23] = cor.str();
+  
+  cor.str("");
   //cor << "(eSR3RecoCleaned2-" << offset3pca << ")/(" << slope3pca << "*eTrue2)";
   cor << "calibratedE(eSR4Reco2,etaTrue2)/eTrue2";
   var2[5] = cor.str();
@@ -383,8 +408,15 @@ int plotReso() {
   cor << "calibratedE(eSR3Reco2,etaTrue2)/eTrue2";
   var2[4] = cor.str();
 
+  cor.str("");
+  //cor << "((eSR3Reco2-" << offset3 << ")/(" << slope3 << "*eTrue2)-" << offset3eta << ")/" << slope3eta;
+  //cor << "(calibratedE(eSR3Reco2,etaTrue2)-" << offset3 << ")/(" << slope3 << "*eTrue2)";
+  cor << "calibratedE(eSR3RecoCleaned2,etaTrue2)/eTrue2";
+  var2[23] = cor.str();
+
   var[4]+="Calib";
   var[5]+="Calib";
+  var[23]+="Calib";
 
   //cor.str("");
   //cor << "(eSR5Reco2-" << offset5 << ")/(" << slope5 << "*eTrue2)";

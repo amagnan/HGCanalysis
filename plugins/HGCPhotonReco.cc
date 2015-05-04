@@ -81,6 +81,8 @@ struct info_t {
   bool isValid;
   bool invalidDetid;
   bool invalidNeighbour;
+  bool invalidDetidPCA;
+  bool invalidNeighbourPCA;
   float etaTrue;
   float phiTrue;
   float etadetTrue;
@@ -137,7 +139,7 @@ struct info_t {
     //for (unsigned i(0);i<5;++i){
       //correction for angle in absorber thickness
       //if (isPCA) eRecoCleaned[i]  = calibratedE(eRecoCleaned[i]/fabs(tanh(etaPCA)),etaPCA);
-      if (isPCA) eRecoCleaned[2]  = eRecoCleaned[2]/fabs(tanh(etaPCA));
+    if (isPCA) eRecoCleaned[2]  = eRecoCleaned[2];///fabs(tanh(etaPCA));
       else {
 	//eReco[2]  = eReco[2];
 	eReco[3]  = eReco[3]/fabs(tanh(etaTrue));
@@ -176,7 +178,6 @@ struct info_t {
     etaPCA =  pcaShowerDir.eta();
     phiPCA =  pcaShowerDir.phi();
 
-
   };
 
   void fillTruth(const edm::Ptr<reco::GenParticle> & aPhoton, const edm::Handle<edm::SimTrackContainer> SimTk, const edm::Handle<edm::SimVertexContainer> SimVtx){
@@ -197,6 +198,8 @@ struct info_t {
     isValid=false;
     invalidDetid=false;
     invalidNeighbour=false;
+    invalidDetidPCA=false;
+    invalidNeighbourPCA=false;
     etaTrue=-5.;
     etadetTrue=-5.;
     phiTrue=-5.;
@@ -312,7 +315,10 @@ private:
   //histograms
   TH2F *hEvsLayer_;
   //TH2F *hetavsphi_[30];
-  //TH2F *hyvsx_[30];
+  TH2F *hyvsx_[30];
+  TH2F *hxvsz_;
+  TH2F *hyvsz_;
+  TH2F *hrvsz_;
   //TH2F *hphisecvscellid_[30];
   // TH2F *hyvsxzoom_[30];
 
@@ -349,6 +355,8 @@ HGCPhotonReco::HGCPhotonReco(const edm::ParameterSet& iConfig):
 	tree_->Branch("isValid1"              ,&info1_.isValid             ,"isValid1/B");
 	tree_->Branch("invalidDetid1"              ,&info1_.invalidDetid             ,"invalidDetid1/B");
 	tree_->Branch("invalidNeighbour1"              ,&info1_.invalidNeighbour             ,"invalidNeighbour1/B");
+	tree_->Branch("invalidDetidPCA1"              ,&info1_.invalidDetidPCA             ,"invalidDetidPCA1/B");
+	tree_->Branch("invalidNeighbourPCA1"              ,&info1_.invalidNeighbourPCA             ,"invalidNeighbourPCA1/B");
 	tree_->Branch("etaTrue1"              ,&info1_.etaTrue             ,"etaTrue1/F");
 	tree_->Branch("etadetTrue1"              ,&info1_.etadetTrue             ,"etadetTrue1/F");
 	tree_->Branch("phiTrue1"              ,&info1_.phiTrue             ,"phiTrue1/F");
@@ -401,6 +409,8 @@ HGCPhotonReco::HGCPhotonReco(const edm::ParameterSet& iConfig):
 	  tree_->Branch("isValid2"              ,&info2_.isValid             ,"isValid2/B");
 	tree_->Branch("invalidDetid2"              ,&info2_.invalidDetid             ,"invalidDetid2/B");
 	tree_->Branch("invalidNeighbour2"              ,&info2_.invalidNeighbour             ,"invalidNeighbour2/B");
+	tree_->Branch("invalidDetidPCA2"              ,&info2_.invalidDetidPCA             ,"invalidDetidPCA2/B");
+	tree_->Branch("invalidNeighbourPCA2"              ,&info2_.invalidNeighbourPCA             ,"invalidNeighbourPCA2/B");
 	  tree_->Branch("etaTrue2"              ,&info2_.etaTrue             ,"etaTrue2/F");
 	  tree_->Branch("etadetTrue2"              ,&info2_.etadetTrue             ,"etadetTrue2/F");
 	  tree_->Branch("phiTrue2"              ,&info2_.phiTrue             ,"phiTrue2/F");
@@ -492,34 +502,46 @@ HGCPhotonReco::HGCPhotonReco(const edm::ParameterSet& iConfig):
 	  dRmin_[iL] = fs_->make<TH1F>(label.str().c_str(),";dRmin;showers",
 				       100,0,0.5);
 	}
-	/*
+	
 	for (unsigned iL(0);iL<nLayers_;++iL){
 	  std::ostringstream label;
-	  label << "hetavsphi_" << iL;
-	  hetavsphi_[iL] = fs_->make<TH2F>(label.str().c_str(),
-					   ";#phi;#eta;hits",
-					   360,-3.1416,3.1416,
-					   30,1.5,3.0);
+	  //label << "hetavsphi_" << iL;
+	  //hetavsphi_[iL] = fs_->make<TH2F>(label.str().c_str(),
+	  //";#phi;#eta;hits",
+	  //360,-3.1416,3.1416,
+	  //30,1.5,3.0);
 	  label.str("");
 	  label << "hyvsx_" << iL;
 	  hyvsx_[iL] = fs_->make<TH2F>(label.str().c_str(),
 				       ";x (cm);y (cm); hits",
 				       340,-170,170,
 				       340,-170,170);
-	  label.str("");
-	  label << "hphisecvscellid_" << iL;
-	  hphisecvscellid_[iL] = fs_->make<TH2F>(label.str().c_str(),
-						 ";cellid;phi sector; hits",
-						 2120,0,2120,
-						 20,0,20);
-	  label.str("");
-	  label << "hyvsxzoom_" << iL;
-	  hyvsxzoom_[iL] = fs_->make<TH2F>(label.str().c_str(),
-					    ";x (cm);y (cm); hits",
-					    1200,-60,60,
-					    1200,-60,60);
-					    }*/
-	
+	  //label.str("");
+	  //label << "hphisecvscellid_" << iL;
+	  //hphisecvscellid_[iL] = fs_->make<TH2F>(label.str().c_str(),
+	  //";cellid;phi sector; hits",
+	  //2120,0,2120,
+	  //20,0,20);
+	  //label.str("");
+	  //label << "hyvsxzoom_" << iL;
+	  //hyvsxzoom_[iL] = fs_->make<TH2F>(label.str().c_str(),
+	  //";x (cm);y (cm); hits",
+	  //1200,-60,60,
+	  //1200,-60,60);
+	}
+	hxvsz_ = fs_->make<TH2F>("hxvsz",
+				 ";z (cm);x (cm); hits",
+				 600,-30,30,
+				 340,-170,170);
+	hyvsz_ = fs_->make<TH2F>("hyvsz",
+				 ";z (cm);y (cm); hits",
+				 600,-30,30,
+				 340,-170,170);
+	hrvsz_ = fs_->make<TH2F>("hrvsz",
+				 ";z (cm);r (cm); hits",
+				 600,-30,30,
+				 170,0,170);
+
 }
 
 // destructor
@@ -559,10 +581,11 @@ void
 HGCPhotonReco::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
 
+  static bool first = true;
+
   if (debug_) std::cout << " -- Processing event " << iEvent.run() << " " << iEvent.luminosityBlock() << " " << iEvent.id().event() << std::endl;
 
   using namespace edm;
-  iEvent.getByLabel(edm::InputTag("HGCalRecHit:HGCEERecHits"),recHits_);
   
   Handle<edm::View<reco::SuperCluster> > HGCEESCs;
   iEvent.getByToken(endcapSuperClusterCollection_,HGCEESCs);
@@ -579,6 +602,7 @@ HGCPhotonReco::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   Handle<edm::View<HGCRecHit> > eeRecHits;
   iEvent.getByToken(endcapRecHitCollection_, eeRecHits);
   const edm::PtrVector<HGCRecHit>& rechitvec = eeRecHits->ptrVector();
+  iEvent.getByLabel(edm::InputTag("HGCalRecHit:HGCEERecHits"),recHits_);
 
   if (zPos_.size()!=nLayers_) {
     fillzPositions(rechitvec);
@@ -592,9 +616,9 @@ HGCPhotonReco::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   PCAShowerAnalysis pcaShowerAnalysis1(iEvent,iSetup);
   PCAShowerAnalysis pcaShowerAnalysis2(iEvent,iSetup);
 
-  /*	
+  	
   //fill hit histos
-  for (unsigned iH(0); iH<rechitvec.size(); ++iH){
+  /*  for (unsigned iH(0); iH<rechitvec.size(); ++iH){
     const HGCRecHit & lHit = *(rechitvec[iH]);
     const HGCEEDetId & hgcid = lHit.detid();
     unsigned layer = hgcid.layer()-1;
@@ -610,11 +634,11 @@ HGCPhotonReco::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
     //double costheta = fabs(posz)/sqrt(posz*posz+posx*posx+posy*posy);
     //double energy = lHit.energy()/mipE_*costheta;//in MIP
     hyvsx_[layer]->Fill(posx,posy);//,energy);
-    hetavsphi_[layer]->Fill(cellPos.phi(),cellPos.eta());//,energy);
-    hphisecvscellid_[layer]->Fill(hgcid.cell(),hgcid.sector());
-    hyvsxzoom_[layer]->Fill(posx,posy);//,energy);
-  }
-  */
+    //hetavsphi_[layer]->Fill(cellPos.phi(),cellPos.eta());//,energy);
+    // hphisecvscellid_[layer]->Fill(hgcid.cell(),hgcid.sector());
+    //hyvsxzoom_[layer]->Fill(posx,posy);//,energy);
+    }*/
+  
 
   //Geant4 collections
   edm::Handle<edm::SimTrackContainer> SimTk;
@@ -641,12 +665,12 @@ HGCPhotonReco::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   for (unsigned int igp =0; igp < gens.size() ; igp++) { // loop over gen particles to fill truth-level tree
     
-    if ((gens.size()>2 && (gens[igp]->pdgId() != 22 || gens[igp]->status() != 3)) || (gens.size()==2 && (gens[igp]->pdgId() != 22 || gens[igp]->status() != 1)) ) continue;
-    if (debug_) {
+    if (debug_>1) {
       std::cout << "[debug] gen pdgid " << gens[igp]->pdgId() << ", status " << gens[igp]->status() << ", e " << gens[igp]->energy() << ", pt " << gens[igp]->pt() << ", eta = " << gens[igp]->eta();
       if (gens[igp]->mother()) std::cout << " mother " << (gens[igp]->mother()->pdgId());
       std::cout <<  std::endl;
     }
+    if ((gens.size()>2 && (gens[igp]->pdgId() != 22 || gens[igp]->status() != 3)) || (gens.size()==2 && (gens[igp]->pdgId() != 22 || gens[igp]->status() != 1)) ) continue;
     //std::cout << " theta check: " << gens[igp]->theta() << " " << 2*atan(exp(-1.*gens[igp]->eta())) << std::endl;
 
     if (photon1.isNull()) {
@@ -717,6 +741,37 @@ HGCPhotonReco::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
     info1_.isValid = true;
     info1_.fillTruth(photon1, SimTk, SimVtx);  
     info1_.fillSC(sclusters[idx1],pcaShowerAnalysis1);
+
+    bool pass = info1_.converted==0 && info1_.eTrue/cosh(info1_.etaTrue)>40 && TMath::Abs(info1_.etaTrue)>1.6 && TMath::Abs(info1_.etaTrue)<2.8 && (TMath::Nint(TMath::Abs(info1_.phiTrue)/(2*TMath::Pi())*360.)%20<9 || TMath::Nint(TMath::Abs(info1_.phiTrue)/(2*TMath::Pi())*360.)%20>11)  && info1_.noPhiCrackPCA==1;
+    if (pass && first){
+      const reco::CaloCluster* clus = &(*(sclusters[idx1]->seed()));
+      for (unsigned int ih=0;ih<clus->hitsAndFractions().size();++ih) {
+	const DetId & id = (clus->hitsAndFractions())[ih].first ;
+	HGCRecHitCollection::const_iterator theHit = recHits_->find(id);    
+	if (id.det()!=DetId::Forward || id.subdetId()!=HGCEE) continue;
+	GlobalPoint cellPos = hgcEEGeom_->getPosition(HGCEEDetId(id));
+	hyvsx_[HGCEEDetId(id).layer()-1]->Fill(cellPos.x(),cellPos.y(),theHit->energy()/0.0000551);//energy in mips
+	//std::cout << cellPos.z() << std::endl;
+	hxvsz_->Fill(cellPos.z()-(cellPos.z()>0?320:-320.),cellPos.x(),theHit->energy()/0.0000551);//energy in mips
+	hyvsz_->Fill(cellPos.z()-(cellPos.z()>0?320:-320.),cellPos.y(),theHit->energy()/0.0000551);//energy in mips
+	hrvsz_->Fill(cellPos.z()-(cellPos.z()>0?320:-320.),sqrt(pow(cellPos.x(),2)+pow(cellPos.y(),2)),theHit->energy()/0.0000551);//energy in mips
+	
+      }
+      //fill expected position from PCA
+      double theta = 2*atan(exp(-1.*info1_.etaPCA));
+      hxvsz_->Fill(info1_.zPCA-(info1_.zPCA>0?320:-320.),info1_.xPCA,20000);
+      hyvsz_->Fill(info1_.zPCA-(info1_.zPCA>0?320:-320.),info1_.yPCA,20000);
+      for (unsigned iL(0);iL<nLayers_;++iL){
+	double r = (info1_.etaPCA/fabs(info1_.etaPCA)*zPos_[iL]-info1_.zPCA)/cos(theta);
+	hyvsx_[iL]->Fill(r*sin(theta)*cos(info1_.phiPCA)+info1_.xPCA,r*sin(theta)*sin(info1_.phiPCA)+info1_.yPCA,10000);
+	hxvsz_->Fill(info1_.etaPCA/fabs(info1_.etaPCA)*(zPos_[iL]-320),r*sin(theta)*cos(info1_.phiPCA)+info1_.xPCA,10000);//energy in mips
+	hyvsz_->Fill(info1_.etaPCA/fabs(info1_.etaPCA)*(zPos_[iL]-320),r*sin(theta)*sin(info1_.phiPCA)+info1_.yPCA,10000);//energy in mips
+	hrvsz_->Fill(info1_.etaPCA/fabs(info1_.etaPCA)*(zPos_[iL]-320),sqrt(pow(r*sin(theta)*cos(info1_.phiPCA)+info1_.xPCA,2)+pow(r*sin(theta)*sin(info1_.phiPCA)+info1_.yPCA,2)),10000);
+      }
+      std::cout << " - Found photon to save!" << std::endl;
+      first = false;
+    }
+
     info1_.eSC = resumEmEnergyTest(sclusters[idx1],clusters);
     getPhotonEnergy(rechitvec,info1_);
   }
@@ -771,7 +826,8 @@ bool HGCPhotonReco::isInFid(const edm::Ptr<reco::GenParticle> & aPhoton){
   return fabs(aPhoton->eta())>1.4 &&  fabs(aPhoton->eta())<3.0;// && ((!singleGamma_ && aPhoton->pt() > 20) || singleGamma_);
 }
 
-void HGCPhotonReco::getPhotonEnergy(const edm::PtrVector<HGCRecHit>& rechitvec,info_t & info){
+void HGCPhotonReco::getPhotonEnergy(const edm::PtrVector<HGCRecHit>& rechitvec,
+				    info_t & info){
 
   double phimax = info.phiTrue;//SC;
   double etamax = info.etaTrue;//SC;
@@ -790,7 +846,7 @@ void HGCPhotonReco::getPhotonEnergy(const edm::PtrVector<HGCRecHit>& rechitvec,i
   detidmax.resize(nLayers_,HGCEEDetId());
 
   //from rechits
-  getMaximumCell(rechitvec,phimax,etamax,detidmax);
+  //getMaximumCell(rechitvec,phimax,etamax,detidmax);
   //if (debug_) std::cout << " -- True eta-phi " << etamax << " " << phimax << std::endl;
   //for (unsigned iL(0);iL<nLayers_;++iL){//loop on layers
   //std::cout << iL << " Max=(" << xmax[iL] << "," << ymax[iL] << ")" << std::endl;
@@ -805,12 +861,15 @@ void HGCPhotonReco::getPhotonEnergy(const edm::PtrVector<HGCRecHit>& rechitvec,i
   //recoE.resize(nLayers_,0);
   const HGCalTopology& topology = hgcEEGeom_->topology();
   double maxE = 0;
+  double theta = 2*atan(exp(-1.*etamax));
+  double x0=isPCA? info.xPCA: truthVtx_.x();
+  double y0=isPCA? info.yPCA: truthVtx_.y();
+  double z0=isPCA? info.zPCA: truthVtx_.z();
   for (unsigned iL(0);iL<nLayers_;++iL){//loop on layers
     //get detidmax
-    double theta = 2*atan(exp(-1.*etamax));
-    double r = fabs((etamax/fabs(etamax)*zPos_[iL]-truthVtx_.z())/cos(theta));
-    GlobalPoint max(r*sin(theta)*cos(phimax)+truthVtx_.x(),r*sin(theta)*sin(phimax)+truthVtx_.y(),etamax/fabs(etamax)*zPos_[iL]);
-    //detidmax[iL] = hgcEEGeom_->getClosestCell(max);
+    double r = (etamax/fabs(etamax)*zPos_[iL]-z0)/cos(theta);
+    GlobalPoint max(r*sin(theta)*cos(phimax)+x0,r*sin(theta)*sin(phimax)+y0,etamax/fabs(etamax)*zPos_[iL]);
+    detidmax[iL] = hgcEEGeom_->getClosestCell(max);
     /*const HGCEEDetId & detidcheck = hgcEEGeom_->getClosestCell(max);
     if (debug_ && detidcheck != detidmax[iL]){
       std::cout << " - layer " << iL << std::endl
@@ -827,6 +886,7 @@ void HGCPhotonReco::getPhotonEnergy(const edm::PtrVector<HGCRecHit>& rechitvec,i
 		}*/
     if (!topology.valid(detidmax[iL]) || detidmax[iL].det()!=DetId::Forward || detidmax[iL].subdetId()!=HGCEE) {
       info.invalidDetid=true;
+      info.invalidDetidPCA=true;
       continue;
     }
     std::vector<double> Exy;
@@ -1020,7 +1080,7 @@ void HGCPhotonReco::fillNeighbours(const HGCEEDetId & detidmax,
   for (unsigned idx(0);idx<9;++idx){
     if (!topology.valid(neighbours[idx]) || neighbours[idx].det()!=DetId::Forward || neighbours[idx].subdetId()!=HGCEE) {
       if (!isPCA) info.invalidNeighbour = true;
-      else info.noPhiCrackPCA = false;
+      else info.invalidNeighbourPCA = false;
       continue;
     }
     HGCRecHitCollection::const_iterator theHit = recHits_->find(neighbours[idx]);
@@ -1039,7 +1099,7 @@ void HGCPhotonReco::fillNeighbours(const HGCEEDetId & detidmax,
     if (fabs(posx-center.x())>sqrt(2) ||
 	fabs(posy-center.y())>sqrt(2)){
       if (!isPCA) info.invalidNeighbour = true;
-      else info.noPhiCrackPCA = false;
+      else info.invalidNeighbourPCA = false;
     }
     double costheta = fabs(posz)/sqrt(posz*posz+posx*posx+posy*posy);
     double energy = theHit->energy()/mipE_;//*costheta;//in MIP

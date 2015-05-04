@@ -67,8 +67,8 @@ from UserCode.HGCanalysis.storeTools_cff import fillFromStore
 
 #fileNames = open("LCFilenames.txt","r")
 #fileNames = open("newRecoFiles2.txt","r")#
-#fileNames = open("sample/140PU/HGG_SLHC25.txt","r")
-fileNames = open("sample/0PU/HGG_SLHC25.txt","r")
+fileNames = open("sample/140PU/HGG_SLHC25.txt","r")
+#fileNames = open("sample/0PU/HGG_SLHC25.txt","r")
 #fileNames = open("sample/0PU/SingleGamma_SLHC25.txt","r")
 #fileNames = open("sample/0PU/SingleGamma_SLHC23.txt","r")
 
@@ -90,7 +90,7 @@ outputTag=preFix.replace('/','_')
 #process.TFileService = cms.Service("TFileService", fileName = cms.string('/tmp/%s/%s_Hits_%d.root'%(whoami,outputTag,ffile)))
 #process.TFileService = cms.Service("TFileService", fileName = cms.string('test.root'))
 #process.TFileService = cms.Service("TFileService", fileName = cms.string('Calib_singleGamma_0pu.root'))
-process.TFileService = cms.Service("TFileService", fileName = cms.string('Truth_Hgg_0pu_maxFromHit.root'))
+process.TFileService = cms.Service("TFileService", fileName = cms.string('Truth_Hgg_140pu_maxFromTruth.root'))
 #process.TFileService = cms.Service("TFileService", fileName = cms.string('testSLHC25_100.root'))
 
 weight_vec_ee_electrons = [0.080]
