@@ -36,7 +36,7 @@ double calibratedE(const double Etot, const double eta){
 
 int plotReso() {
 
-  std::string outfile = "InfoPlots_0_maxFromTruth";
+  std::string outfile = "InfoPlots_140_convVeto";
   //std::string outfile = "InfoPlots_140";
   //std::string outfile = "InfoPlots_singleGamma";
 
@@ -44,10 +44,10 @@ int plotReso() {
 
   std::string cut1 = "converted1==0 && eTrue1/cosh(etaTrue1)>40 && TMath::Abs(etaTrue1)>1.6 && TMath::Abs(etaTrue1)<2.8 && (TMath::Nint(TMath::Abs(phiTrue1)/(2*TMath::Pi())*360.)%20<9 || TMath::Nint(TMath::Abs(phiTrue1)/(2*TMath::Pi())*360.)%20>11) && invalidDetid1==0 && invalidNeighbour1==0";
   std::string cut2 = "converted2==0 && eTrue2/cosh(etaTrue2)>40 && TMath::Abs(etaTrue2)>1.6 && TMath::Abs(etaTrue2)<2.8 && (TMath::Nint(TMath::Abs(phiTrue2)/(2*TMath::Pi())*360.)%20<9 || TMath::Nint(TMath::Abs(phiTrue2)/(2*TMath::Pi())*360.)%20>11) && invalidDetid2==0 && invalidNeighbour2==0";
-  std::string cut1pca = "converted1==0 && eTrue1/cosh(etaTrue1)>40 && TMath::Abs(etaTrue1)>1.6 && TMath::Abs(etaTrue1)<2.8 && (TMath::Nint(TMath::Abs(phiTrue1)/(2*TMath::Pi())*360.)%20<9 || TMath::Nint(TMath::Abs(phiTrue1)/(2*TMath::Pi())*360.)%20>11) && invalidDetidPCA1==0 && invalidNeighbourPCA1==0";
-  std::string cut2pca = "converted2==0 && eTrue2/cosh(etaTrue2)>40 && TMath::Abs(etaTrue2)>1.6 && TMath::Abs(etaTrue2)<2.8 && (TMath::Nint(TMath::Abs(phiTrue2)/(2*TMath::Pi())*360.)%20<9 || TMath::Nint(TMath::Abs(phiTrue2)/(2*TMath::Pi())*360.)%20>11) && invalidDetidPCA2==0 && invalidNeighbourPCA2==0";
+  std::string cut1pca = "calibratedE(eSR3Reco1,etaPCA1)/eSC1>0.9 && eTrue1/cosh(etaTrue1)>40 && TMath::Abs(etaTrue1)>1.6 && TMath::Abs(etaTrue1)<2.8 && (TMath::Nint(TMath::Abs(phiTrue1)/(2*TMath::Pi())*360.)%20<9 || TMath::Nint(TMath::Abs(phiTrue1)/(2*TMath::Pi())*360.)%20>11) && invalidDetidPCA1==0 && invalidNeighbourPCA1==0 && dRTrue1 < 0.05";
+  std::string cut2pca = "calibratedE(eSR3Reco2,etaPCA2)/eSC2>0.9 && eTrue2/cosh(etaTrue2)>40 && TMath::Abs(etaTrue2)>1.6 && TMath::Abs(etaTrue2)<2.8 && (TMath::Nint(TMath::Abs(phiTrue2)/(2*TMath::Pi())*360.)%20<9 || TMath::Nint(TMath::Abs(phiTrue2)/(2*TMath::Pi())*360.)%20>11) && invalidDetidPCA2==0 && invalidNeighbourPCA2==0 && dRTrue2 < 0.05";
 
-  TFile *fin = TFile::Open("Truth_Hgg_0pu_maxFromTruth.root");
+  TFile *fin = TFile::Open("Truth_Hgg_140pu_maxFromTruth.root");
   //TFile *fin = TFile::Open("test.root");
   if (!fin) return 1;
   fin->cd("hgg");
@@ -204,8 +204,8 @@ int plotReso() {
 
   myc[2]->cd();
   TH2F *h2pca = new TH2F("h2pca",";egen (GeV);ereco 3x3 (mips); photons",60,0,600,60,0,600);
-  t->Draw("calibratedE(eSR3RecoCleaned1,etaTrue1):eTrue1>>h2pca",cut1pca.c_str());
-  t->Draw("calibratedE(eSR3RecoCleaned2,etaTrue2):eTrue2>>+h2pca",cut2pca.c_str());
+  t->Draw("calibratedE(eSR3RecoCleaned1,etaPCA1):eTrue1>>h2pca",cut1pca.c_str());
+  t->Draw("calibratedE(eSR3RecoCleaned2,etaPCA2):eTrue2>>+h2pca",cut2pca.c_str());
   //TH2F *h2pca = new TH2F("h2pca",";egen (GeV);ereco 3x3 (mips); photons",60,0,600,1000,0,50000);
   //t->Draw("eSR3RecoCleaned1:eTrue1>>h2pca",cut1.c_str());
   //t->Draw("eSR3RecoCleaned2:eTrue2>>+h2pca",cut2.c_str());
@@ -240,11 +240,11 @@ int plotReso() {
 
   cor.str("");
   //cor << "(eSR3RecoCleaned1-" << offset3pca << ")/(" << slope3pca << "*eTrue1):TMath::Abs(etaTrue1)>>h2pcaeta";
-  cor << "calibratedE(eSR3RecoCleaned1,etaTrue1)/eTrue1:etaTrue1>>h2pcaeta";
+  cor << "calibratedE(eSR3RecoCleaned1,etaPCA1)/eTrue1:etaTrue1>>h2pcaeta";
   t->Draw(cor.str().c_str(),cut1pca.c_str());
   cor.str("");
   //cor << "(eSR3RecoCleaned2-" << offset3pca << ")/(" << slope3pca << "*eTrue2):TMath::Abs(etaTrue2)>>+h2pcaeta";
-  cor << "calibratedE(eSR3RecoCleaned2,etaTrue2)/eTrue2:etaTrue2>>+h2pcaeta";
+  cor << "calibratedE(eSR3RecoCleaned2,etaPCA2)/eTrue2:etaTrue2>>+h2pcaeta";
   t->Draw(cor.str().c_str(),cut2pca.c_str());
   h2pcaeta->Draw("colz");
 
@@ -360,10 +360,10 @@ int plotReso() {
   myc[5]->cd();
   TH2F *h2phipca = new TH2F("h2phipca",";#phi;ereco 3x3/egen; photons",360,-3.1416,3.1416,100,0,2);
   cor.str("");
-  cor << "calibratedE(eSR3RecoCleaned1,etaTrue1)/eTrue1:phiTrue1>>h2phipca";
+  cor << "calibratedE(eSR3RecoCleaned1,etaPCA1)/eTrue1:phiTrue1>>h2phipca";
   t->Draw(cor.str().c_str(),cut1pca.c_str());
   cor.str("");
-  cor << "calibratedE(eSR3RecoCleaned2,etaTrue2)/eTrue2:phiTrue2>>+h2phipca";
+  cor << "calibratedE(eSR3RecoCleaned2,etaPCA2)/eTrue2:phiTrue2>>+h2phipca";
   t->Draw(cor.str().c_str(),cut2pca.c_str());
 
   h2phipca->Draw("colz");
@@ -394,7 +394,7 @@ int plotReso() {
   cor.str("");
   //cor << "((eSR3Reco1-" << offset3 << ")/(" << slope3 << "*eTrue1)-" << offset3eta << ")/" << slope3eta;
   //cor << "(calibratedE(eSR3Reco1,etaTrue1)-" << offset3 << ")/(" << slope3 << "*eTrue1)";
-  cor << "calibratedE(eSR3RecoCleaned1,etaTrue1)/eTrue1";
+  cor << "calibratedE(eSR3RecoCleaned1,etaPCA1)/eTrue1";
   var1[23] = cor.str();
   
   cor.str("");
@@ -411,7 +411,7 @@ int plotReso() {
   cor.str("");
   //cor << "((eSR3Reco2-" << offset3 << ")/(" << slope3 << "*eTrue2)-" << offset3eta << ")/" << slope3eta;
   //cor << "(calibratedE(eSR3Reco2,etaTrue2)-" << offset3 << ")/(" << slope3 << "*eTrue2)";
-  cor << "calibratedE(eSR3RecoCleaned2,etaTrue2)/eTrue2";
+  cor << "calibratedE(eSR3RecoCleaned2,etaPCA2)/eTrue2";
   var2[23] = cor.str();
 
   var[4]+="Calib";
@@ -427,13 +427,17 @@ int plotReso() {
   gStyle->SetOptStat("eMRuo");
   for (unsigned iV(0); iV<nV; ++iV){//loop on variables
     myc[nMore+iV]->cd();
-    t->Draw(var1[iV].c_str(),cut1.c_str());
+    if (var1[iV].find("PCA")!=var1[iV].npos ||
+	var1[iV].find("Cleaned")!=var1[iV].npos) t->Draw(var1[iV].c_str(),cut1pca.c_str());
+    else t->Draw(var1[iV].c_str(),cut1.c_str());
     hist[iV] = (TH1F*)(gPad->GetPrimitive("htemp"))->Clone(var[iV].c_str());
     std::cout << " -- first photon " << hist[iV]->GetEntries() << std::endl;
     cor.str("");
     cor << var2[iV] << ">>+" << var[iV];
     std::cout << "debug " << cor.str() << std::endl;
-    t->Draw(cor.str().c_str(),cut2.c_str());
+    if (var1[iV].find("PCA")!=var1[iV].npos ||
+	var1[iV].find("Cleaned")!=var1[iV].npos) t->Draw(cor.str().c_str(),cut2pca.c_str());
+    else t->Draw(cor.str().c_str(),cut2.c_str());
     std::cout << " -- second photon " << hist[iV]->GetEntries() << std::endl;
     std::cout << " -- Hist " << var[iV] << " " << hist[iV]->GetEntries() << " " << hist[iV]->GetMean() << " " << hist[iV]->GetRMS() << std::endl;
     hist[iV]->SetTitle("");
@@ -446,7 +450,7 @@ int plotReso() {
     //if (iV==4) hist[iV]->Rebin(2); 
     hist[iV]->Draw();
     gStyle->SetOptFit(1111);
-    if (iV==4) hist[iV]->Fit("gaus","LR","same",0.9,1.1);
+    if (iV==4 || iV==5 || iV==23) hist[iV]->Fit("gaus","LR","same",0.95,1.05);
     myc[nMore+iV]->Update();
     myc[nMore+iV]->Print((outfile+".pdf").c_str());
     
