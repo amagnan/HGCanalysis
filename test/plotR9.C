@@ -22,7 +22,8 @@
 #include "TProfile.h"
 #include "TPaveStats.h"
 
-double calibratedE(const double Etot, const double eta){
+double calibratedE(const double Etot, const double eta,
+		   const unsigned cells=3){
   //calibration for signal region 2: 3*3 cm^2
   double pars[3] = {69.5,4.5,-0.8};
   //double pars[3] = {75.5,0,0};
@@ -32,6 +33,8 @@ double calibratedE(const double Etot, const double eta){
   //double paro[3] = {-5.3,-12.8,-6.9};  
   double offset = paro[0] + paro[1]*fabs(eta) + paro[2]*eta*eta;
   double slope = pars[0] + pars[1]*fabs(eta) + pars[2]*eta*eta;
+  if (cells==5) slope *= 1.11;
+  if (cells==7) slope *= 1.15;
   return (Etot-offset)/slope;
 };
 
@@ -40,7 +43,7 @@ int plotR9() {
   std::string cut1pca = "eTrue1/cosh(etaTrue1)>40 && TMath::Abs(etaTrue1)>1.6 && TMath::Abs(etaTrue1)<2.8 && (TMath::Nint(TMath::Abs(phiTrue1)/(2*TMath::Pi())*360.)%20<9 || TMath::Nint(TMath::Abs(phiTrue1)/(2*TMath::Pi())*360.)%20>11) && invalidDetidPCA1==0 && invalidNeighbourPCA1==0 && noPhiCrackPCA1==1 && dRTrue1 < 0.05";
   std::string cut2pca = "eTrue2/cosh(etaTrue2)>40 && TMath::Abs(etaTrue2)>1.6 && TMath::Abs(etaTrue2)<2.8 && (TMath::Nint(TMath::Abs(phiTrue2)/(2*TMath::Pi())*360.)%20<9 || TMath::Nint(TMath::Abs(phiTrue2)/(2*TMath::Pi())*360.)%20>11) && invalidDetidPCA2==0 && invalidNeighbourPCA2==0 && noPhiCrackPCA2==1 && dRTrue2 < 0.05";
 
-  TFile *fin = TFile::Open("Truth_Hgg_140pu_maxFromTruth.root");
+  TFile *fin = TFile::Open("Truth_Hgg_0pu.root");
   if (!fin) return 1;
   fin->cd("hgg");
 
@@ -51,7 +54,7 @@ int plotR9() {
     return 1;
   }
 
-  const unsigned nC = 2;
+  const unsigned nC = 4;
   TCanvas *myc[nC];
   for (unsigned ic(0); ic<nC; ++ic){
     std::ostringstream label;
@@ -60,6 +63,8 @@ int plotR9() {
 			  label.str().c_str(),
 			  1);
   }
+
+
   myc[0]->cd();
   gStyle->SetOptStat("eMRuo");
   
@@ -140,6 +145,55 @@ int plotR9() {
 
   myc[1]->Update();
   myc[1]->Print("e3x3overeSCintegrated_Hgg_140pu.pdf");
+
+
+  myc[2]->cd();
+  gStyle->SetOptStat("eMRuo");
+  gStyle->SetOptFit(1111);
+  
+  TH1F *htot = new TH1F("htot",";e_{reco}/e_{true};Photons",100,0,2);
+  t->Draw("calibratedE(eSR3Reco1,etaPCA1)/eTrue1>>htot",(cut1pca+" && calibratedE(eSR3Reco1,etaPCA1)/eSC1>0.9").c_str());
+  t->Draw("calibratedE(eSR3Reco2,etaPCA2)/eTrue2>>+htot",(cut2pca+" && calibratedE(eSR3Reco2,etaPCA2)/eSC2>0.9").c_str());
+  htot->Draw();
+  htot->Fit("gaus","","same",0.95,1.05);
+
+  std::cout << " -- first photon " << htot->GetEntries() << std::endl;
+  t->Draw("calibratedE(eSR5Reco1,etaPCA1,5)/eTrue1>>+htot",(cut1pca+" && calibratedE(eSR3Reco1,etaPCA1)/eSC1<=0.9").c_str());
+  t->Draw("calibratedE(eSR5Reco2,etaPCA2,5)/eTrue2>>+htot",(cut2pca+" && calibratedE(eSR3Reco2,etaPCA2)/eSC2<=0.9").c_str());
+  
+  std::cout << " -- second photon " << htot->GetEntries() << std::endl;
+  htot->Draw("same");
+
+  htot->Fit("gaus","","same",0.95,1.05);
+
+  myc[2]->Update();
+  myc[2]->Print("eReco35overeTrue_Hgg_140pu.pdf");
+    
+  myc[3]->cd();
+  gStyle->SetOptStat("eMRuo");
+  gStyle->SetOptFit(1111);
+  
+  TH1F *htot7 = new TH1F("htot7",";e_{reco}/e_{true};Photons",100,0,2);
+  t->Draw("calibratedE(eSR3Reco1,etaPCA1)/eTrue1>>htot7",(cut1pca+" && calibratedE(eSR3Reco1,etaPCA1)/eSC1>0.9").c_str());
+  t->Draw("calibratedE(eSR7Reco1,etaPCA1,7)/eTrue1>>+htot7",(cut1pca+" && calibratedE(eSR3Reco1,etaPCA1)/eSC1<=0.9").c_str());
+
+  std::cout << " -- first photon " << htot->GetEntries() << std::endl;
+  t->Draw("calibratedE(eSR3Reco2,etaPCA2)/eTrue2>>+htot7",(cut2pca+" && calibratedE(eSR3Reco2,etaPCA2)/eSC2>0.9").c_str());
+  t->Draw("calibratedE(eSR7Reco2,etaPCA2,7)/eTrue2>>+htot7",(cut2pca+" && calibratedE(eSR3Reco2,etaPCA2)/eSC2<=0.9").c_str());
+  
+  std::cout << " -- second photon " << htot->GetEntries() << std::endl;
+  htot7->Draw();
+
+  htot7->Fit("gaus","","same",0.95,1.05);
+
+  myc[3]->Update();
+  myc[3]->Print("eReco37overeTrue_Hgg_140pu.pdf");
+    
+
+
+
+
+
 
   return 0;
 }

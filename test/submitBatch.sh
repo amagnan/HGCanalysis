@@ -16,4 +16,4 @@ cp /afs/cern.ch/work/a/amagnan/CMSSW_$SLHC_version/src/UserCode/HGCanalysis/test
 cp -r /afs/cern.ch/work/a/amagnan/CMSSW_$SLHC_version/src/UserCode/HGCanalysis/test/sample .
 
 cmsRun hgcPhotonRecoConfig.py | tee hgcPhotonReco.out
-cp Calib_singleGamma_0pu.root /afs/cern.ch/work/a/amagnan/CMSSW_$SLHC_version/src/UserCode/HGCanalysis/test/
+cp Truth_Hgg_140pu.root /afs/cern.ch/work/a/amagnan/CMSSW_$SLHC_version/src/UserCode/HGCanalysis/test/

@@ -104,8 +104,8 @@ struct info_t {
   int nClusters09;
   float eSeed;
   float eSC;
-  float eReco[5];
-  float eRecoCleaned[5];
+  float eReco[3];
+  float eRecoPCA[3];
   int converted;
   unsigned showerMax;
   double zShowerMax;
@@ -117,16 +117,6 @@ struct info_t {
   float etaPCA;
   float phiPCA;
 
-  /*double calibratedE(const double Etot, const double eta){
-    //calibration for signal region 2: 3*3 cm^2
-    double pars[3] = {77,3.4,-0.50};
-    double paro[3] = {-11.6,-7.7,-8.8};
-    //double paro[3] = {-5.3,-12.8,-6.9};  
-    double offset = paro[0] + paro[1]*fabs(eta) + paro[2]*eta*eta;
-    double slope = pars[0] + pars[1]*fabs(eta) + pars[2]*eta*eta;
-    return (Etot-offset)/slope;
-    };*/
-
   void correctForEtaDep(const ROOT::Math::XYZVector & posSC, const bool isPCA=false){
     if (!isPCA) {
       ROOT::Math::XYZVector vtx = ROOT::Math::XYZVector(xvtxTrue,yvtxTrue,zvtxTrue);
@@ -136,16 +126,6 @@ struct info_t {
       phiReco = photon.phi();
       if (fabs(etaReco)>5) return;
     }
-    //for (unsigned i(0);i<5;++i){
-      //correction for angle in absorber thickness
-      //if (isPCA) eRecoCleaned[i]  = calibratedE(eRecoCleaned[i]/fabs(tanh(etaPCA)),etaPCA);
-    if (isPCA) eRecoCleaned[2]  = eRecoCleaned[2];///fabs(tanh(etaPCA));
-      else {
-	//eReco[2]  = eReco[2];
-	eReco[3]  = eReco[3]/fabs(tanh(etaTrue));
-      }
-      //}
-    
   };
 
   void fillSC(const edm::Ptr<reco::SuperCluster> & aSC, PCAShowerAnalysis  & pcaShowerAnalysis){
@@ -215,9 +195,9 @@ struct info_t {
     etaReco = -5;
     etadetReco = -5;
     phiReco = -5;
-    for (unsigned i(0);i<5;++i){
+    for (unsigned i(0);i<3;++i){
       eReco[i]  = 0;         
-      eRecoCleaned[i]  = 0;         
+      eRecoPCA[i]  = 0;         
     }
     eSeed     =-1.;
     eSC = -1;
@@ -268,7 +248,6 @@ public:
   //double calibratedE(const double Etot, const double eta);
   void fillNeighbours(const HGCEEDetId & detidmax,
 		      std::vector<double> & Exy,
-		      std::vector<double> & Exyetacor,
 		      info_t & info,
 		      bool isPCA);
 private:
@@ -382,16 +361,12 @@ HGCPhotonReco::HGCPhotonReco(const edm::ParameterSet& iConfig):
 	tree_->Branch("eSeed1"              ,&info1_.eSeed            ,"eSeed1/F");
 	tree_->Branch("eSC1"              ,&info1_.eSC            ,"eSC1/F");
 
-	tree_->Branch("eSR1Reco1"              ,&info1_.eReco[0]            ,"eSR1Reco1/F");
-	tree_->Branch("eSR2Reco1"              ,&info1_.eReco[1]            ,"eSR2Reco1/F");
-	tree_->Branch("eSR3Reco1"              ,&info1_.eReco[2]            ,"eSR3Reco1/F");
-	tree_->Branch("eSR4Reco1"              ,&info1_.eReco[3]            ,"eSR4Reco1/F");
-	tree_->Branch("eSR5Reco1"              ,&info1_.eReco[4]            ,"eSR5Reco1/F");
-	tree_->Branch("eSR1RecoCleaned1"              ,&info1_.eRecoCleaned[0]            ,"eSR1RecoCleaned1/F");
-	tree_->Branch("eSR2RecoCleaned1"              ,&info1_.eRecoCleaned[1]            ,"eSR2RecoCleaned1/F");
-	tree_->Branch("eSR3RecoCleaned1"              ,&info1_.eRecoCleaned[2]            ,"eSR3RecoCleaned1/F");
-	tree_->Branch("eSR4RecoCleaned1"              ,&info1_.eRecoCleaned[3]            ,"eSR4RecoCleaned1/F");
-	tree_->Branch("eSR5RecoCleaned1"              ,&info1_.eRecoCleaned[4]            ,"eSR5RecoCleaned1/F");
+	tree_->Branch("eSR3Reco1"              ,&info1_.eReco[0]            ,"eSR3Reco1/F");
+	tree_->Branch("eSR5Reco1"              ,&info1_.eReco[1]            ,"eSR5Reco1/F");
+	tree_->Branch("eSR7Reco1"              ,&info1_.eReco[2]            ,"eSR7Reco1/F");
+	tree_->Branch("eSR3RecoPCA1"              ,&info1_.eRecoPCA[0]            ,"eSR3RecoPCA1/F");
+	tree_->Branch("eSR5RecoPCA1"              ,&info1_.eRecoPCA[1]            ,"eSR5RecoPCA1/F");
+	tree_->Branch("eSR7RecoPCA1"              ,&info1_.eRecoPCA[2]            ,"eSR7RecoPCA1/F");
 	tree_->Branch("converted1"              ,&info1_.converted            ,"converted1/I");
 	tree_->Branch("showerMax1"              ,&info1_.showerMax            ,"showerMax1/I");
 	tree_->Branch("noPhiCrack1"              ,&info1_.noPhiCrack             ,"noPhiCrack1/B");
@@ -435,16 +410,14 @@ HGCPhotonReco::HGCPhotonReco(const edm::ParameterSet& iConfig):
 	  
 	  tree_->Branch("eSeed2"              ,&info2_.eSeed            ,"eSeed2/F");
 	  tree_->Branch("eSC2"              ,&info2_.eSC            ,"eSC2/F");
-	  tree_->Branch("eSR1Reco2"              ,&info2_.eReco[0]            ,"eSR1Reco2/F");
-	  tree_->Branch("eSR2Reco2"              ,&info2_.eReco[1]            ,"eSR2Reco2/F");
-	  tree_->Branch("eSR3Reco2"              ,&info2_.eReco[2]            ,"eSR3Reco2/F");
-	  tree_->Branch("eSR4Reco2"              ,&info2_.eReco[3]            ,"eSR4Reco2/F");
-	  tree_->Branch("eSR5Reco2"              ,&info2_.eReco[4]            ,"eSR5Reco2/F");
-	tree_->Branch("eSR1RecoCleaned2"              ,&info2_.eRecoCleaned[0]            ,"eSR1RecoCleaned2/F");
-	tree_->Branch("eSR2RecoCleaned2"              ,&info2_.eRecoCleaned[1]            ,"eSR2RecoCleaned2/F");
-	tree_->Branch("eSR3RecoCleaned2"              ,&info2_.eRecoCleaned[2]            ,"eSR3RecoCleaned2/F");
-	tree_->Branch("eSR4RecoCleaned2"              ,&info2_.eRecoCleaned[3]            ,"eSR4RecoCleaned2/F");
-	tree_->Branch("eSR5RecoCleaned2"              ,&info2_.eRecoCleaned[4]            ,"eSR5RecoCleaned2/F");	  tree_->Branch("converted2"              ,&info2_.converted            ,"converted2/I");
+	  tree_->Branch("eSR3Reco2"              ,&info2_.eReco[0]            ,"eSR3Reco2/F");
+	  tree_->Branch("eSR5Reco2"              ,&info2_.eReco[1]            ,"eSR5Reco2/F");
+	  tree_->Branch("eSR7Reco2"              ,&info2_.eReco[2]            ,"eSR7Reco2/F");
+	  tree_->Branch("eSR3RecoPCA2"              ,&info2_.eRecoPCA[0]            ,"eSR3RecoPCA2/F");
+	  tree_->Branch("eSR5RecoPCA2"              ,&info2_.eRecoPCA[1]            ,"eSR5RecoPCA2/F");
+	  tree_->Branch("eSR7RecoPCA2"              ,&info2_.eRecoPCA[2]            ,"eSR7RecoPCA2/F");
+
+	  tree_->Branch("converted2"              ,&info2_.converted            ,"converted2/I");
 	  tree_->Branch("showerMax2"              ,&info2_.showerMax            ,"showerMax2/I");
 	  tree_->Branch("noPhiCrack2"              ,&info2_.noPhiCrack             ,"noPhiCrack2/B");
 	  tree_->Branch("noPhiCrackPCA2"              ,&info2_.noPhiCrackPCA             ,"noPhiCrackPCA2/B");
@@ -786,7 +759,7 @@ HGCPhotonReco::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   
   //info1_.eSeed = (clusterEmEnergy(sclusters[idx1]->seed(), clusters));
   //info1_.eReco = resumEmEnergy(sclusters[info.matchIndex], clusters);
-  //info1_.eRecoCleaned = resumEmEnergyTest(sclusters[info.matchIndex], clusters);
+  //info1_.eRecoPCA = resumEmEnergyTest(sclusters[info.matchIndex], clusters);
   
   //auto 	sc = sclusters[info.matchIndex];
   //	for(unsigned int l =0 ; l<sc->clusters().size(); l++){
@@ -889,34 +862,39 @@ void HGCPhotonReco::getPhotonEnergy(const edm::PtrVector<HGCRecHit>& rechitvec,i
       info.invalidDetidPCA=true;
       continue;
     }
-    std::vector<double> Exy;
-    Exy.resize(9,0);
-    std::vector<double> Exyetacor;
-    Exyetacor.resize(9,0);
-    if (debug_) std::cout << " -- detidmax[" << iL << "=" << detidmax[iL] << std::endl;
-    fillNeighbours(detidmax[iL],Exy,Exyetacor,info,isPCA);
-    const GlobalPoint & center = hgcEEGeom_->getPosition(detidmax[iL]);
-    if (!info.converted) {
-      dxMaxTruth_->Fill((center.x()-max.x())*10);
-      dyMaxTruth_->Fill((center.y()-max.y())*10);
-      dzMaxTruth_->Fill((center.z()-max.z())*10);
-      dphiMaxTruthvsLayer_->Fill(iL,DeltaPhi(center.phi(),max.phi()));
-    }
-
+    //loop on signal regions
+    std::vector<unsigned> sizeR;
+    sizeR.push_back(3);
+    sizeR.push_back(5);
+    sizeR.push_back(7);
     double etot = 0;
-    for (unsigned idx(0);idx<9;++idx){
-      etot += Exy[idx];
-      if (!isPCA) {
-	info.eReco[2] += Exy[idx]*absWeight(iL);
-	info.eReco[3] += Exyetacor[idx]*absWeight(iL);
+    for (unsigned iS(0);iS<sizeR.size();++iS){
+      
+      std::vector<double> Exy;
+      Exy.resize(sizeR[iS]*sizeR[iS],0);
+      if (debug_) std::cout << " -- detidmax[" << iL << "=" << detidmax[iL] << std::endl;
+      fillNeighbours(detidmax[iL],Exy,info,isPCA);
+      const GlobalPoint & center = hgcEEGeom_->getPosition(detidmax[iL]);
+      if (!info.converted) {
+	dxMaxTruth_->Fill((center.x()-max.x())*10);
+	dyMaxTruth_->Fill((center.y()-max.y())*10);
+	dzMaxTruth_->Fill((center.z()-max.z())*10);
+	dphiMaxTruthvsLayer_->Fill(iL,DeltaPhi(center.phi(),max.phi()));
       }
-      else info.eRecoCleaned[2] += Exy[idx]*absWeight(iL);
+      for (unsigned idx(0);idx<Exy.size();++idx){
+	if (iS==0) etot += Exy[idx];
+	if (!isPCA) {
+	  info.eReco[iS] += Exy[idx]*absWeight(iL);
+	}
+	else info.eRecoPCA[iS] += Exy[idx]*absWeight(iL);
+      }
     }
     if (etot>maxE){
       maxE = etot;
       if (!isPCA) info.showerMax = iL;
     }
-  }
+  }//loop on layers
+
   GlobalPoint cellPos = hgcEEGeom_->getPosition(detidmax[info.showerMax]);
   if (!isPCA) {
     info.zShowerMax = cellPos.z();
@@ -1044,47 +1022,111 @@ void HGCPhotonReco::getMaximumCell(const edm::PtrVector<HGCRecHit>& rechitvec,co
 */
 void HGCPhotonReco::fillNeighbours(const HGCEEDetId & detidmax,
 				   std::vector<double> & Exy,
-				   std::vector<double> & Exyetacor,
 				   info_t & info,
 				   bool isPCA){
 
+  unsigned nCells = sqrt(Exy.size());
+
   const HGCalTopology& topology = hgcEEGeom_->topology();
   std::vector<HGCEEDetId> neighbours;
-  neighbours.resize(9,HGCEEDetId());
-  DetId tmp = topology.goSouth(detidmax);
-  if (topology.valid(tmp)) {
-    neighbours[1] = HGCEEDetId(tmp);
-    tmp = topology.goWest(neighbours[1]);
-    if (topology.valid(tmp)) neighbours[0] = HGCEEDetId(tmp);
-    tmp = topology.goEast(neighbours[1]);
-    if (topology.valid(tmp)) neighbours[2] = HGCEEDetId(tmp);
+  neighbours.resize(Exy.size(),HGCEEDetId());
+  neighbours[(Exy.size()-1)/2] = detidmax;
+  unsigned nGo = (nCells-1)/2;
+
+  //south lines
+  for (unsigned i(0); i<nGo;++i){
+    unsigned center = (Exy.size()-1)/2 -nCells*i;
+    //std::cout << " Center " << center << std::endl;
+    unsigned idxrow = (Exy.size()-1)/2 -nCells*(i+1);
+    DetId tmp = topology.goSouth(neighbours[center]);
+    if (topology.valid(tmp)) {
+      neighbours[idxrow] = HGCEEDetId(tmp);
+      unsigned idx=idxrow;
+      //std::cout << " South row center " << idx << " " ;
+      for (unsigned j(0); j<nGo;++j){
+	unsigned nextidx = (Exy.size()-1)/2 -nCells*(i+1) - (j+1);
+	//std::cout << nextidx << " " ;
+	tmp = topology.goWest(neighbours[idx]);
+	if (topology.valid(tmp)) neighbours[nextidx]  = HGCEEDetId(tmp);
+	idx=nextidx;
+      }
+      idx = idxrow;
+      for (unsigned j(0); j<nGo;++j){
+	unsigned nextidx = (Exy.size()-1)/2 -nCells*(i+1) + (j+1);
+	//std::cout << nextidx << " ";
+	tmp = topology.goEast(neighbours[idx]);
+	if (topology.valid(tmp)) neighbours[nextidx] = HGCEEDetId(tmp);
+	idx=nextidx;
+      }
+      //std::cout << std::endl;
+    }
   }
 
-  neighbours[4] = detidmax;
-  tmp = topology.goWest(neighbours[4]);
-  if (topology.valid(tmp)) neighbours[3] = HGCEEDetId(tmp);
-  tmp = topology.goEast(neighbours[4]);
-  if (topology.valid(tmp)) neighbours[5] = HGCEEDetId(tmp);
-
-  tmp = topology.goNorth(detidmax);
-  if (topology.valid(tmp)) {
-    neighbours[7] = HGCEEDetId(tmp);
-    tmp = topology.goWest(neighbours[7]);
-    if (topology.valid(tmp)) neighbours[6] = HGCEEDetId(tmp);
-    tmp = topology.goEast(neighbours[7]);
-    if (topology.valid(tmp)) neighbours[8] = HGCEEDetId(tmp);
+  {
+    //center line
+    unsigned idx=(Exy.size()-1)/2;
+    //std::cout << " Central row center " << idx << " " ;
+    for (unsigned j(0); j<nGo;++j){
+      unsigned nextidx = (Exy.size()-1)/2 - (j+1);
+      //std::cout << nextidx << " " ;
+      DetId tmp = topology.goWest(neighbours[idx]);
+      if (topology.valid(tmp)) neighbours[nextidx]  = HGCEEDetId(tmp);
+      idx=nextidx;
+    }
+    idx = (Exy.size()-1)/2;
+    for (unsigned j(0); j<nGo;++j){
+      unsigned nextidx = (Exy.size()-1)/2 + (j+1);
+      //std::cout << nextidx << " ";
+      DetId tmp = topology.goEast(neighbours[idx]);
+      if (topology.valid(tmp)) neighbours[nextidx] = HGCEEDetId(tmp);
+      idx=nextidx;
+    }
+    //std::cout << std::endl;
   }
 
+  //north
+  for (unsigned i(0); i<nGo;++i){
+    unsigned center = (Exy.size()-1)/2 + nCells*i;
+    //std::cout << " Center " << center << std::endl;
+    unsigned idxrow = (Exy.size()-1)/2 + nCells*(i+1);
+    DetId tmp = topology.goNorth(neighbours[center]);
+    if (topology.valid(tmp)) {
+      neighbours[idxrow] = HGCEEDetId(tmp);
+      unsigned idx=idxrow;
+      //std::cout << " North row center " << idx << " " ;
+      for (unsigned j(0); j<nGo;++j){
+	unsigned nextidx = (Exy.size()-1)/2 + nCells*(i+1) - (j+1);
+	//std::cout << nextidx << " " ;
+	tmp = topology.goWest(neighbours[idx]);
+	if (topology.valid(tmp)) neighbours[nextidx]  = HGCEEDetId(tmp);
+	idx=nextidx;
+      }
+      idx = idxrow;
+      for (unsigned j(0); j<nGo;++j){
+	unsigned nextidx = (Exy.size()-1)/2 + nCells*(i+1) + (j+1);
+	//std::cout << nextidx << " ";
+	tmp = topology.goEast(neighbours[idx]);
+	if (topology.valid(tmp)) neighbours[nextidx] = HGCEEDetId(tmp);
+	idx=nextidx;
+      }
+      //std::cout << std::endl;
+    }
+  }
+  
   GlobalPoint center = hgcEEGeom_->getPosition(detidmax);
 
-  for (unsigned idx(0);idx<9;++idx){
+  for (unsigned idx(0);idx<Exy.size();++idx){
+    //std::cout << " idx " << idx << std::flush;
+    //std::cout << " neighbour detid " << neighbours[idx] << std::endl;
     if (!topology.valid(neighbours[idx]) || neighbours[idx].det()!=DetId::Forward || neighbours[idx].subdetId()!=HGCEE) {
       if (!isPCA) info.invalidNeighbour = true;
       else info.invalidNeighbourPCA = false;
       continue;
     }
+    //std::cout << " accessing rechit " << std::endl;
     HGCRecHitCollection::const_iterator theHit = recHits_->find(neighbours[idx]);
     if (theHit==recHits_->end()) continue;
+    //std::cout << " rechit found" << std::endl;
     GlobalPoint cellPos = hgcEEGeom_->getPosition(neighbours[idx]);
     if ((neighbours[idx].sector()*neighbours[idx].subsector()) != (detidmax.sector()*detidmax.subsector())) {
       if (!isPCA) info.noPhiCrack = false;
@@ -1093,18 +1135,21 @@ void HGCPhotonReco::fillNeighbours(const HGCEEDetId & detidmax,
     double posx = cellPos.x();
     double posy = cellPos.y();
     double posz = cellPos.z();
-    dxMaxNeigh_[idx]->Fill((posx-center.x())*10.);
-    dyMaxNeigh_[idx]->Fill((posy-center.y())*10.);
-    dzMaxNeigh_[idx]->Fill((posz-center.z())*10.);
-    if (fabs(posx-center.x())>sqrt(2) ||
-	fabs(posy-center.y())>sqrt(2)){
+    if (Exy.size()==9){
+      dxMaxNeigh_[idx]->Fill((posx-center.x())*10.);
+      dyMaxNeigh_[idx]->Fill((posy-center.y())*10.);
+      dzMaxNeigh_[idx]->Fill((posz-center.z())*10.);
+    }
+    if (fabs(posx-center.x())>sqrt(2*pow(nGo,2)) ||
+	fabs(posy-center.y())>sqrt(2*pow(nGo,2))){
       if (!isPCA) info.invalidNeighbour = true;
       else info.invalidNeighbourPCA = false;
     }
-    double costheta = fabs(posz)/sqrt(posz*posz+posx*posx+posy*posy);
+    //double costheta = fabs(posz)/sqrt(posz*posz+posx*posx+posy*posy);
     double energy = theHit->energy()/mipE_;//*costheta;//in MIP
     Exy[idx] = energy;
-    Exyetacor[idx] = energy*costheta;
+    //Exyetacor[idx] = energy*costheta;
+    //std::cout << " -end processing neighbour" << std::endl;
   }
 }
 
