@@ -20,7 +20,7 @@
 #include "TFitResultPtr.h"
 const char* effSigma_cstr;
 double effSigma_val;
-Double_t effSigmaMacro(TH1 * hist)
+Double_t effSigmaMacro(TH1 * hist, double & err)
 {
 TAxis *xaxis = hist->GetXaxis();
 Int_t nb = xaxis->GetNbins();
@@ -38,9 +38,12 @@ Double_t xmin = xaxis->GetXmin();
 Double_t ave = hist->GetMean();
 Double_t rms = hist->GetRMS();
 Double_t total=0.;
+ Double_t totalErr=0.;
 for(Int_t i=0; i<nb+2; i++) {
 total+=hist->GetBinContent(i);
 }
+ totalErr = total;
+
 // if(total < 100.) {
 // std::cout << "effsigma: Too few entries " << total << std::endl;
 // return 0.;
@@ -95,5 +98,8 @@ std::string effSigma_str = ostr1.str();
 effSigma_cstr = effSigma_str.c_str();
 // std::cout << effSigma_str << std::endl <<effSigma_cstr << std::endl;
 effSigma_val=widmin;
+
+ err = widmin/sqrt(2*totalErr);
+
 return widmin;
 }

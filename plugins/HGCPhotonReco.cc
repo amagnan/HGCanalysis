@@ -104,8 +104,9 @@ struct info_t {
   int nClusters09;
   float eSeed;
   float eSC;
-  float eReco[3];
-  float eRecoPCA[3];
+  std::vector<float> eRecoLayers[4];
+  float eReco[4];
+  float eRecoPCA[4];
   int converted;
   unsigned showerMax;
   double zShowerMax;
@@ -195,9 +196,12 @@ struct info_t {
     etaReco = -5;
     etadetReco = -5;
     phiReco = -5;
-    for (unsigned i(0);i<3;++i){
+    for (unsigned i(0);i<4;++i){
       eReco[i]  = 0;         
-      eRecoPCA[i]  = 0;         
+      eRecoPCA[i]  = 0;
+      for (unsigned iL(0);iL<30;++iL){
+	eRecoLayers[i][iL]=0;
+      }
     }
     eSeed     =-1.;
     eSC = -1;
@@ -226,6 +230,7 @@ public:
   
   static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
   
+  void createTreeBranches(info_t & info, const std::string & suffix);
   double DeltaPhi(const double & phi1, const double & phi2);
 
   void fillzPositions(const edm::PtrVector<HGCRecHit>& rechitvec);
@@ -285,7 +290,6 @@ private:
   double cellSize_;
   bool doLogWeight_;
   double mipE_;
-  unsigned nSR_;
   unsigned debug_;
   bool singleGamma_;
   std::map<unsigned,double> zPos_;
@@ -327,196 +331,175 @@ HGCPhotonReco::HGCPhotonReco(const edm::ParameterSet& iConfig):
 { 
   g4TracksSource_           = iConfig.getUntrackedParameter<std::string>("g4TracksSource");
   g4VerticesSource_         = iConfig.getUntrackedParameter<std::string>("g4VerticesSource");
-	geometrySource_ = iConfig.getUntrackedParameter< std::vector<std::string> >("geometrySource");
-	edm::Service<TFileService> fs_;
+  geometrySource_ = iConfig.getUntrackedParameter< std::vector<std::string> >("geometrySource");
 
-	tree_ = fs_->make<TTree>("tree","");
-	tree_->Branch("isValid1"              ,&info1_.isValid             ,"isValid1/B");
-	tree_->Branch("invalidDetid1"              ,&info1_.invalidDetid             ,"invalidDetid1/B");
-	tree_->Branch("invalidNeighbour1"              ,&info1_.invalidNeighbour             ,"invalidNeighbour1/B");
-	tree_->Branch("invalidDetidPCA1"              ,&info1_.invalidDetidPCA             ,"invalidDetidPCA1/B");
-	tree_->Branch("invalidNeighbourPCA1"              ,&info1_.invalidNeighbourPCA             ,"invalidNeighbourPCA1/B");
-	tree_->Branch("etaTrue1"              ,&info1_.etaTrue             ,"etaTrue1/F");
-	tree_->Branch("etadetTrue1"              ,&info1_.etadetTrue             ,"etadetTrue1/F");
-	tree_->Branch("phiTrue1"              ,&info1_.phiTrue             ,"phiTrue1/F");
-	tree_->Branch("dRTrue1"              ,&info1_.dRTrue            ,"dRTrue1/F");
-	tree_->Branch("eTrue1"              ,&info1_.eTrue            ,"eTrue1/F");
-	tree_->Branch("xvtxTrue1"              ,&info1_.xvtxTrue            ,"xvtxTrue1/F");
-	tree_->Branch("yvtxTrue1"              ,&info1_.yvtxTrue            ,"yvtxTrue1/F");
-	tree_->Branch("zvtxTrue1"              ,&info1_.zvtxTrue            ,"zvtxTrue1/F");
+  //@TODO
+  //get this from geometry !!
+  nLayers_ = 30;
+  cellSize_ = 1;
+  doLogWeight_ = true;
+  mipE_ = 0.0000551;
+  truthVtx_ = ROOT::Math::XYZPoint(0,0,0);
 
-	tree_->Branch("etaSC1"              ,&info1_.etaSC             ,"etaSC1/F");
-	tree_->Branch("phiSC1"              ,&info1_.phiSC             ,"phiSC1/F");
-	tree_->Branch("etaSeed1"              ,&info1_.etaSeed             ,"etaSeed1/F");
-	tree_->Branch("phiSeed1"              ,&info1_.phiSeed             ,"phiSeed1/F");
-	tree_->Branch("etaReco1"              ,&info1_.etaReco             ,"etaReco1/F");
-	tree_->Branch("etadetReco1"              ,&info1_.etadetReco             ,"etadetReco1/F");
-	tree_->Branch("phiReco1"              ,&info1_.phiReco             ,"phiReco1/F");
-	tree_->Branch("etaWidth1"              ,&info1_.etaWidth             ,"etaWidth1/F");
-	tree_->Branch("phiWidth1"              ,&info1_.phiWidth             ,"phiWidth1/F");
-	tree_->Branch("clustersSize1"              ,&info1_.clustersSize           ,"clustersSize1/I");
-	tree_->Branch("nClusters091"              ,&info1_.nClusters09           ,"nClusters091/I");
+  for (unsigned iS(0);iS<4;++iS){
+    info1_.eRecoLayers[iS].resize(30,0);        
+    info2_.eRecoLayers[iS].resize(30,0);        
+  }
 
-
-	tree_->Branch("eSeed1"              ,&info1_.eSeed            ,"eSeed1/F");
-	tree_->Branch("eSC1"              ,&info1_.eSC            ,"eSC1/F");
-
-	tree_->Branch("eSR3Reco1"              ,&info1_.eReco[0]            ,"eSR3Reco1/F");
-	tree_->Branch("eSR5Reco1"              ,&info1_.eReco[1]            ,"eSR5Reco1/F");
-	tree_->Branch("eSR7Reco1"              ,&info1_.eReco[2]            ,"eSR7Reco1/F");
-	tree_->Branch("eSR3RecoPCA1"              ,&info1_.eRecoPCA[0]            ,"eSR3RecoPCA1/F");
-	tree_->Branch("eSR5RecoPCA1"              ,&info1_.eRecoPCA[1]            ,"eSR5RecoPCA1/F");
-	tree_->Branch("eSR7RecoPCA1"              ,&info1_.eRecoPCA[2]            ,"eSR7RecoPCA1/F");
-	tree_->Branch("converted1"              ,&info1_.converted            ,"converted1/I");
-	tree_->Branch("showerMax1"              ,&info1_.showerMax            ,"showerMax1/I");
-	tree_->Branch("noPhiCrack1"              ,&info1_.noPhiCrack             ,"noPhiCrack1/B");
-	tree_->Branch("noPhiCrackPCA1"              ,&info1_.noPhiCrackPCA             ,"noPhiCrackPCA1/B");
-
-	tree_->Branch("xPCA1"              ,&info1_.xPCA            ,"xPCA1/F");
-	tree_->Branch("yPCA1"              ,&info1_.yPCA            ,"yPCA1/F");
-	tree_->Branch("zPCA1"              ,&info1_.zPCA            ,"zPCA1/F");
-	tree_->Branch("etaPCA1"              ,&info1_.etaPCA            ,"etaPCA1/F");
-	tree_->Branch("phiPCA1"              ,&info1_.phiPCA            ,"phiPCA1/F");
-
-
-	if (!singleGamma_){
-	  //photon 2
-	  tree_->Branch("isValid2"              ,&info2_.isValid             ,"isValid2/B");
-	tree_->Branch("invalidDetid2"              ,&info2_.invalidDetid             ,"invalidDetid2/B");
-	tree_->Branch("invalidNeighbour2"              ,&info2_.invalidNeighbour             ,"invalidNeighbour2/B");
-	tree_->Branch("invalidDetidPCA2"              ,&info2_.invalidDetidPCA             ,"invalidDetidPCA2/B");
-	tree_->Branch("invalidNeighbourPCA2"              ,&info2_.invalidNeighbourPCA             ,"invalidNeighbourPCA2/B");
-	  tree_->Branch("etaTrue2"              ,&info2_.etaTrue             ,"etaTrue2/F");
-	  tree_->Branch("etadetTrue2"              ,&info2_.etadetTrue             ,"etadetTrue2/F");
-	  tree_->Branch("phiTrue2"              ,&info2_.phiTrue             ,"phiTrue2/F");
-	  tree_->Branch("dRTrue2"              ,&info2_.dRTrue            ,"dRTrue2/F");
-	  tree_->Branch("eTrue2"              ,&info2_.eTrue            ,"eTrue2/F");
-	  tree_->Branch("xvtxTrue2"              ,&info2_.xvtxTrue            ,"xvtxTrue2/F");
-	  tree_->Branch("yvtxTrue2"              ,&info2_.yvtxTrue            ,"yvtxTrue2/F");
-	  tree_->Branch("zvtxTrue2"              ,&info2_.zvtxTrue            ,"zvtxTrue2/F");
-	  
-	  tree_->Branch("etaSC2"              ,&info2_.etaSC             ,"etaSC2/F");
-	  tree_->Branch("phiSC2"              ,&info2_.phiSC             ,"phiSC2/F");
-	  tree_->Branch("etaReco2"              ,&info2_.etaReco             ,"etaReco2/F");
-	  tree_->Branch("etadetReco2"              ,&info2_.etadetReco             ,"etadetReco2/F");
-	  tree_->Branch("phiReco2"              ,&info2_.phiReco             ,"phiReco2/F");
-	  tree_->Branch("etaSeed2"              ,&info2_.etaSeed             ,"etaSeed2/F");
-	  tree_->Branch("phiSeed2"              ,&info2_.phiSeed             ,"phiSeed2/F");
-	  tree_->Branch("etaWidth2"              ,&info2_.etaWidth             ,"etaWidth2/F");
-	  tree_->Branch("phiWidth2"              ,&info2_.phiWidth             ,"phiWidth2/F");
-	  tree_->Branch("clustersSize2"              ,&info2_.clustersSize           ,"clustersSize2/I");
-	  tree_->Branch("nClusters092"              ,&info2_.nClusters09           ,"nClusters092/I");
-	  
-	  
-	  tree_->Branch("eSeed2"              ,&info2_.eSeed            ,"eSeed2/F");
-	  tree_->Branch("eSC2"              ,&info2_.eSC            ,"eSC2/F");
-	  tree_->Branch("eSR3Reco2"              ,&info2_.eReco[0]            ,"eSR3Reco2/F");
-	  tree_->Branch("eSR5Reco2"              ,&info2_.eReco[1]            ,"eSR5Reco2/F");
-	  tree_->Branch("eSR7Reco2"              ,&info2_.eReco[2]            ,"eSR7Reco2/F");
-	  tree_->Branch("eSR3RecoPCA2"              ,&info2_.eRecoPCA[0]            ,"eSR3RecoPCA2/F");
-	  tree_->Branch("eSR5RecoPCA2"              ,&info2_.eRecoPCA[1]            ,"eSR5RecoPCA2/F");
-	  tree_->Branch("eSR7RecoPCA2"              ,&info2_.eRecoPCA[2]            ,"eSR7RecoPCA2/F");
-
-	  tree_->Branch("converted2"              ,&info2_.converted            ,"converted2/I");
-	  tree_->Branch("showerMax2"              ,&info2_.showerMax            ,"showerMax2/I");
-	  tree_->Branch("noPhiCrack2"              ,&info2_.noPhiCrack             ,"noPhiCrack2/B");
-	  tree_->Branch("noPhiCrackPCA2"              ,&info2_.noPhiCrackPCA             ,"noPhiCrackPCA2/B");
-
-	tree_->Branch("xPCA2"              ,&info2_.xPCA            ,"xPCA2/F");
-	tree_->Branch("yPCA2"              ,&info2_.yPCA            ,"yPCA2/F");
-	tree_->Branch("zPCA2"              ,&info2_.zPCA            ,"zPCA2/F");
-	tree_->Branch("etaPCA2"              ,&info2_.etaPCA            ,"etaPCA2/F");
-	tree_->Branch("phiPCA2"              ,&info2_.phiPCA            ,"phiPCA2/F");
+  edm::Service<TFileService> fs_;
+  
+  tree_ = fs_->make<TTree>("tree","");
+  createTreeBranches(info1_,"1");
+  if (!singleGamma_) createTreeBranches(info2_,"2");
+  
+  if(iConfig.exists("hgcOverburdenParamFile"))
+    {
+      edm::FileInPath fp = iConfig.getParameter<edm::FileInPath>("hgcOverburdenParamFile");
+      TFile *fIn=TFile::Open(fp.fullPath().c_str());
+      if(fIn)
+	{
+	  _hgcOverburdenParam=(const TGraphErrors *) fIn->Get("x0Overburden");
+	  _hgcLambdaOverburdenParam = (const TGraphErrors *) fIn->Get("lambdaOverburden");
+	  fIn->Close();
 	}
-	if(iConfig.exists("hgcOverburdenParamFile"))
-	  {
-	    edm::FileInPath fp = iConfig.getParameter<edm::FileInPath>("hgcOverburdenParamFile");
-	    TFile *fIn=TFile::Open(fp.fullPath().c_str());
-	    if(fIn)
-	      {
-		_hgcOverburdenParam=(const TGraphErrors *) fIn->Get("x0Overburden");
-		_hgcLambdaOverburdenParam = (const TGraphErrors *) fIn->Get("lambdaOverburden");
-		fIn->Close();
-	      }
-	  }
-
-	//@TODO
-	//get this from geometry !!
-	nLayers_ = 30;
-	cellSize_ = 1;
-	doLogWeight_ = true;
-	mipE_ = 0.0000551;
-	nSR_ = 5;
-	truthVtx_ = ROOT::Math::XYZPoint(0,0,0);
-	hEvsLayer_ = fs_->make<TH2F>("hEvsLayer_",";layer;E;photons",
-				     nLayers_,0,nLayers_,
-				     1000,0,10000);
-
-	dxMaxTruth_ = fs_->make<TH1F>("dxMaxTruth_",";#Deltax(truth,cell) (mm);cells",100,-50,50);
-	dyMaxTruth_ = fs_->make<TH1F>("dyMaxTruth_",";#Deltay(truth,cell) (mm);cells",100,-50,50);
-	dzMaxTruth_ = fs_->make<TH1F>("dzMaxTruth_",";#Deltaxz(truth,cell) (mm);cells",100,-1,1);
-	dphiMaxTruthvsLayer_ = fs_->make<TH2F>("dphiMaxTruthvsLayer_",";layer;#Delta#phi(truth,cell);cells",nLayers_,0,nLayers_,100,-1,1);
-
-	for (unsigned idx(0);idx<9;++idx){
-	  std::ostringstream label;
-	  label << "dxMaxNeigh_" << idx;
-	  dxMaxNeigh_[idx] = fs_->make<TH1F>(label.str().c_str(),";#Deltax(neigh,cell) (mm);cells",100,-50,50);
-	  label.str("");
-	  label << "dyMaxNeigh_" << idx;
-	  dyMaxNeigh_[idx] = fs_->make<TH1F>(label.str().c_str(),";#Deltay(neigh,cell) (mm);cells",100,-50,50);
-	  label.str("");
-	  label << "dzMaxNeigh_" << idx;
-	  dzMaxNeigh_[idx] = fs_->make<TH1F>(label.str().c_str(),";#Deltaxz(neigh,cell) (mm);cells",100,-1,1);
-	}
-
-	for (unsigned iL(0);iL<nLayers_;++iL){
-	  std::ostringstream label;
-	  label << "dRmin_" << iL;
-	  dRmin_[iL] = fs_->make<TH1F>(label.str().c_str(),";dRmin;showers",
-				       100,0,0.5);
-	}
-	
-	for (unsigned iL(0);iL<nLayers_;++iL){
-	  std::ostringstream label;
-	  //label << "hetavsphi_" << iL;
-	  //hetavsphi_[iL] = fs_->make<TH2F>(label.str().c_str(),
-	  //";#phi;#eta;hits",
-	  //360,-3.1416,3.1416,
-	  //30,1.5,3.0);
-	  label.str("");
-	  label << "hyvsx_" << iL;
-	  hyvsx_[iL] = fs_->make<TH2F>(label.str().c_str(),
-				       ";x (cm);y (cm); hits",
-				       340,-170,170,
-				       340,-170,170);
-	  //label.str("");
-	  //label << "hphisecvscellid_" << iL;
-	  //hphisecvscellid_[iL] = fs_->make<TH2F>(label.str().c_str(),
-	  //";cellid;phi sector; hits",
-	  //2120,0,2120,
-	  //20,0,20);
-	  //label.str("");
-	  //label << "hyvsxzoom_" << iL;
-	  //hyvsxzoom_[iL] = fs_->make<TH2F>(label.str().c_str(),
-	  //";x (cm);y (cm); hits",
-	  //1200,-60,60,
-	  //1200,-60,60);
-	}
-	hxvsz_ = fs_->make<TH2F>("hxvsz",
-				 ";z (cm);x (cm); hits",
-				 600,-30,30,
+    }
+  
+  hEvsLayer_ = fs_->make<TH2F>("hEvsLayer_",";layer;E;photons",
+			       nLayers_,0,nLayers_,
+			       1000,0,10000);
+  
+  dxMaxTruth_ = fs_->make<TH1F>("dxMaxTruth_",";#Deltax(truth,cell) (mm);cells",100,-50,50);
+  dyMaxTruth_ = fs_->make<TH1F>("dyMaxTruth_",";#Deltay(truth,cell) (mm);cells",100,-50,50);
+  dzMaxTruth_ = fs_->make<TH1F>("dzMaxTruth_",";#Deltaxz(truth,cell) (mm);cells",100,-1,1);
+  dphiMaxTruthvsLayer_ = fs_->make<TH2F>("dphiMaxTruthvsLayer_",";layer;#Delta#phi(truth,cell);cells",nLayers_,0,nLayers_,100,-1,1);
+  
+  for (unsigned idx(0);idx<9;++idx){
+    std::ostringstream label;
+    label << "dxMaxNeigh_" << idx;
+    dxMaxNeigh_[idx] = fs_->make<TH1F>(label.str().c_str(),";#Deltax(neigh,cell) (mm);cells",100,-50,50);
+    label.str("");
+    label << "dyMaxNeigh_" << idx;
+    dyMaxNeigh_[idx] = fs_->make<TH1F>(label.str().c_str(),";#Deltay(neigh,cell) (mm);cells",100,-50,50);
+    label.str("");
+    label << "dzMaxNeigh_" << idx;
+    dzMaxNeigh_[idx] = fs_->make<TH1F>(label.str().c_str(),";#Deltaxz(neigh,cell) (mm);cells",100,-1,1);
+  }
+  
+  for (unsigned iL(0);iL<nLayers_;++iL){
+    std::ostringstream label;
+    label << "dRmin_" << iL;
+    dRmin_[iL] = fs_->make<TH1F>(label.str().c_str(),";dRmin;showers",
+				 100,0,0.5);
+  }
+  
+  for (unsigned iL(0);iL<nLayers_;++iL){
+    std::ostringstream label;
+    //label << "hetavsphi_" << iL;
+    //hetavsphi_[iL] = fs_->make<TH2F>(label.str().c_str(),
+    //";#phi;#eta;hits",
+    //360,-3.1416,3.1416,
+    //30,1.5,3.0);
+    label.str("");
+    label << "hyvsx_" << iL;
+    hyvsx_[iL] = fs_->make<TH2F>(label.str().c_str(),
+				 ";x (cm);y (cm); hits",
+				 340,-170,170,
 				 340,-170,170);
-	hyvsz_ = fs_->make<TH2F>("hyvsz",
-				 ";z (cm);y (cm); hits",
-				 600,-30,30,
-				 340,-170,170);
-	hrvsz_ = fs_->make<TH2F>("hrvsz",
-				 ";z (cm);r (cm); hits",
-				 600,-30,30,
-				 170,0,170);
-
+    //label.str("");
+    //label << "hphisecvscellid_" << iL;
+    //hphisecvscellid_[iL] = fs_->make<TH2F>(label.str().c_str(),
+    //";cellid;phi sector; hits",
+    //2120,0,2120,
+    //20,0,20);
+    //label.str("");
+    //label << "hyvsxzoom_" << iL;
+    //hyvsxzoom_[iL] = fs_->make<TH2F>(label.str().c_str(),
+    //";x (cm);y (cm); hits",
+    //1200,-60,60,
+    //1200,-60,60);
+  }
+  hxvsz_ = fs_->make<TH2F>("hxvsz",
+			   ";z (cm);x (cm); hits",
+			   600,-30,30,
+			   340,-170,170);
+  hyvsz_ = fs_->make<TH2F>("hyvsz",
+			   ";z (cm);y (cm); hits",
+			   600,-30,30,
+			   340,-170,170);
+  hrvsz_ = fs_->make<TH2F>("hrvsz",
+			   ";z (cm);r (cm); hits",
+			   600,-30,30,
+			   170,0,170);
+  
 }
 
+void HGCPhotonReco::createTreeBranches(info_t & info, const std::string & suffix){
+  tree_->Branch(("isValid"+suffix).c_str()              ,&info.isValid             ,("isValid"+suffix+"/B").c_str());
+  tree_->Branch(("invalidDetid"+suffix).c_str()              ,&info.invalidDetid             ,("invalidDetid"+suffix+"/B").c_str());
+  tree_->Branch(("invalidNeighbour"+suffix).c_str()              ,&info.invalidNeighbour             ,("invalidNeighbour"+suffix+"/B").c_str());
+  tree_->Branch(("invalidDetidPCA"+suffix).c_str()              ,&info.invalidDetidPCA             ,("invalidDetidPCA"+suffix+"/B").c_str());
+  tree_->Branch(("invalidNeighbourPCA"+suffix).c_str()              ,&info.invalidNeighbourPCA             ,("invalidNeighbourPCA"+suffix+"/B").c_str());
+  tree_->Branch(("etaTrue"+suffix).c_str()              ,&info.etaTrue             ,("etaTrue"+suffix+"/F").c_str());
+  tree_->Branch(("etadetTrue"+suffix).c_str()              ,&info.etadetTrue             ,("etadetTrue"+suffix+"/F").c_str());
+  tree_->Branch(("phiTrue"+suffix).c_str()              ,&info.phiTrue             ,("phiTrue"+suffix+"/F").c_str());
+  tree_->Branch(("dRTrue"+suffix).c_str()              ,&info.dRTrue            ,("dRTrue"+suffix+"/F").c_str());
+  tree_->Branch(("eTrue"+suffix).c_str()              ,&info.eTrue            ,("eTrue"+suffix+"/F").c_str());
+  tree_->Branch(("xvtxTrue"+suffix).c_str()              ,&info.xvtxTrue            ,("xvtxTrue"+suffix+"/F").c_str());
+  tree_->Branch(("yvtxTrue"+suffix).c_str()              ,&info.yvtxTrue            ,("yvtxTrue"+suffix+"/F").c_str());
+  tree_->Branch(("zvtxTrue"+suffix).c_str()              ,&info.zvtxTrue            ,("zvtxTrue"+suffix+"/F").c_str());
+  
+  tree_->Branch(("etaSC"+suffix).c_str()              ,&info.etaSC             ,("etaSC"+suffix+"/F").c_str());
+  tree_->Branch(("phiSC"+suffix).c_str()              ,&info.phiSC             ,("phiSC"+suffix+"/F").c_str());
+  tree_->Branch(("etaSeed"+suffix).c_str()              ,&info.etaSeed             ,("etaSeed"+suffix+"/F").c_str());
+  tree_->Branch(("phiSeed"+suffix).c_str()              ,&info.phiSeed             ,("phiSeed"+suffix+"/F").c_str());
+  tree_->Branch(("etaReco"+suffix).c_str()              ,&info.etaReco             ,("etaReco"+suffix+"/F").c_str());
+  tree_->Branch(("etadetReco"+suffix).c_str()              ,&info.etadetReco             ,("etadetReco"+suffix+"/F").c_str());
+  tree_->Branch(("phiReco"+suffix).c_str()              ,&info.phiReco             ,("phiReco"+suffix+"/F").c_str());
+  tree_->Branch(("etaWidth"+suffix).c_str()              ,&info.etaWidth             ,("etaWidth"+suffix+"/F").c_str());
+  tree_->Branch(("phiWidth"+suffix).c_str()              ,&info.phiWidth             ,("phiWidth"+suffix+"/F").c_str());
+  tree_->Branch(("clustersSize"+suffix).c_str()              ,&info.clustersSize           ,("clustersSize"+suffix+"/I").c_str());
+  tree_->Branch(("nClusters09"+suffix).c_str()              ,&info.nClusters09           ,("nClusters09"+suffix+"/I").c_str());
+  
+  tree_->Branch(("eSeed"+suffix).c_str()              ,&info.eSeed            ,("eSeed"+suffix+"/F").c_str());
+  tree_->Branch(("eSC"+suffix).c_str()              ,&info.eSC            ,("eSC"+suffix+"/F").c_str());
+  
+  tree_->Branch(("eSR1Reco"+suffix).c_str()              ,&info.eReco[0]            ,("eSR1Reco"+suffix+"/F").c_str());
+  tree_->Branch(("eSR3Reco"+suffix).c_str()              ,&info.eReco[1]            ,("eSR3Reco"+suffix+"/F").c_str());
+  tree_->Branch(("eSR5Reco"+suffix).c_str()              ,&info.eReco[2]            ,("eSR5Reco"+suffix+"/F").c_str());
+  tree_->Branch(("eSR7Reco"+suffix).c_str()              ,&info.eReco[3]            ,("eSR7Reco"+suffix+"/F").c_str());
+  
+  for (unsigned iL(0); iL<nLayers_;++iL){
+    std::ostringstream label;
+    label.str("");
+    label << "eSR1RecoLayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoLayers[0][iL]            ,(label.str()+"/F").c_str());
+    label.str("");
+    label << "eSR3RecoLayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoLayers[1][iL]            ,(label.str()+"/F").c_str());
+    label.str("");
+    label << "eSR5RecoLayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoLayers[2][iL]            ,(label.str()+"/F").c_str());
+    label.str("");
+    label << "eSR7RecoLayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoLayers[3][iL]            ,(label.str()+"/F").c_str());	  
+  }
+  
+  tree_->Branch(("eSR1RecoPCA"+suffix).c_str()              ,&info.eRecoPCA[0]            ,("eSR1RecoPCA"+suffix+"/F").c_str());
+  tree_->Branch(("eSR3RecoPCA"+suffix).c_str()              ,&info.eRecoPCA[1]            ,("eSR3RecoPCA"+suffix+"/F").c_str());
+  tree_->Branch(("eSR5RecoPCA"+suffix).c_str()              ,&info.eRecoPCA[2]            ,("eSR5RecoPCA"+suffix+"/F").c_str());
+  tree_->Branch(("eSR7RecoPCA"+suffix).c_str()              ,&info.eRecoPCA[3]            ,("eSR7RecoPCA"+suffix+"/F").c_str());
+  tree_->Branch(("converted"+suffix).c_str()              ,&info.converted            ,("converted"+suffix+"/I").c_str());
+  tree_->Branch(("showerMax"+suffix).c_str()              ,&info.showerMax            ,("showerMax"+suffix+"/I").c_str());
+  tree_->Branch(("noPhiCrack"+suffix).c_str()              ,&info.noPhiCrack             ,("noPhiCrack"+suffix+"/B").c_str());
+  tree_->Branch(("noPhiCrackPCA"+suffix).c_str()              ,&info.noPhiCrackPCA             ,("noPhiCrackPCA"+suffix+"/B").c_str());
+  
+  tree_->Branch(("xPCA"+suffix).c_str()              ,&info.xPCA            ,("xPCA"+suffix+"/F").c_str());
+  tree_->Branch(("yPCA"+suffix).c_str()              ,&info.yPCA            ,("yPCA"+suffix+"/F").c_str());
+  tree_->Branch(("zPCA"+suffix).c_str()              ,&info.zPCA            ,("zPCA"+suffix+"/F").c_str());
+  tree_->Branch(("etaPCA"+suffix).c_str()              ,&info.etaPCA            ,("etaPCA"+suffix+"/F").c_str());
+  tree_->Branch(("phiPCA"+suffix).c_str()              ,&info.phiPCA            ,("phiPCA"+suffix+"/F").c_str());
+  
+}
 // destructor
 HGCPhotonReco::~HGCPhotonReco()
 {
@@ -864,6 +847,7 @@ void HGCPhotonReco::getPhotonEnergy(const edm::PtrVector<HGCRecHit>& rechitvec,i
     }
     //loop on signal regions
     std::vector<unsigned> sizeR;
+    sizeR.push_back(1);
     sizeR.push_back(3);
     sizeR.push_back(5);
     sizeR.push_back(7);
@@ -885,6 +869,7 @@ void HGCPhotonReco::getPhotonEnergy(const edm::PtrVector<HGCRecHit>& rechitvec,i
 	if (iS==0) etot += Exy[idx];
 	if (!isPCA) {
 	  info.eReco[iS] += Exy[idx]*absWeight(iL);
+	  info.eRecoLayers[iS][iL] += Exy[idx];
 	}
 	else info.eRecoPCA[iS] += Exy[idx]*absWeight(iL);
       }
