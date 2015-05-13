@@ -90,7 +90,7 @@ outputTag=preFix.replace('/','_')
 #process.TFileService = cms.Service("TFileService", fileName = cms.string('/tmp/%s/%s_Hits_%d.root'%(whoami,outputTag,ffile)))
 #process.TFileService = cms.Service("TFileService", fileName = cms.string('test.root'))
 #process.TFileService = cms.Service("TFileService", fileName = cms.string('Calib_singleGamma_0pu.root'))
-process.TFileService = cms.Service("TFileService", fileName = cms.string('Truth_Hgg_140pu.root'))
+process.TFileService = cms.Service("TFileService", fileName = cms.string('PCA_topoFix_Hgg_140pu.root'))
 #process.TFileService = cms.Service("TFileService", fileName = cms.string('testSLHC25_100.root'))
 
 weight_vec_ee_electrons = [0.080]

@@ -104,9 +104,10 @@ struct info_t {
   int nClusters09;
   float eSeed;
   float eSC;
-  std::vector<float> eRecoLayers[4];
-  float eReco[4];
-  float eRecoPCA[4];
+  float eReco[10];
+  std::vector<float> eRecoLayers[10];
+  float eRecoPCA[10];
+  std::vector<float> eRecoPCALayers[10];
   int converted;
   unsigned showerMax;
   double zShowerMax;
@@ -196,11 +197,12 @@ struct info_t {
     etaReco = -5;
     etadetReco = -5;
     phiReco = -5;
-    for (unsigned i(0);i<4;++i){
+    for (unsigned i(0);i<10;++i){
       eReco[i]  = 0;         
       eRecoPCA[i]  = 0;
       for (unsigned iL(0);iL<30;++iL){
 	eRecoLayers[i][iL]=0;
+	eRecoPCALayers[i][iL]=0;
       }
     }
     eSeed     =-1.;
@@ -253,8 +255,10 @@ public:
   //double calibratedE(const double Etot, const double eta);
   void fillNeighbours(const HGCEEDetId & detidmax,
 		      std::vector<double> & Exy,
+		      const unsigned nInEta,
+		      const unsigned nInPhi,
 		      info_t & info,
-		      bool isPCA);
+		      const bool isPCA);
 private:
 
   virtual void beginJob() ;
@@ -309,9 +313,9 @@ private:
   TH1F *dyMaxTruth_;
   TH1F *dzMaxTruth_;
   TH2F *dphiMaxTruthvsLayer_;
-  TH1F *dxMaxNeigh_[9];
-  TH1F *dyMaxNeigh_[9];
-  TH1F *dzMaxNeigh_[9];
+  TH1F *dxMaxNeigh_[25];
+  TH1F *dyMaxNeigh_[25];
+  //TH1F *dzMaxNeigh_[25];
   TH1F *dRmin_[30];
 
 
@@ -341,9 +345,11 @@ HGCPhotonReco::HGCPhotonReco(const edm::ParameterSet& iConfig):
   mipE_ = 0.0000551;
   truthVtx_ = ROOT::Math::XYZPoint(0,0,0);
 
-  for (unsigned iS(0);iS<4;++iS){
+  for (unsigned iS(0);iS<10;++iS){
     info1_.eRecoLayers[iS].resize(30,0);        
     info2_.eRecoLayers[iS].resize(30,0);        
+    info1_.eRecoPCALayers[iS].resize(30,0);        
+    info2_.eRecoPCALayers[iS].resize(30,0);        
   }
 
   edm::Service<TFileService> fs_;
@@ -373,16 +379,16 @@ HGCPhotonReco::HGCPhotonReco(const edm::ParameterSet& iConfig):
   dzMaxTruth_ = fs_->make<TH1F>("dzMaxTruth_",";#Deltaxz(truth,cell) (mm);cells",100,-1,1);
   dphiMaxTruthvsLayer_ = fs_->make<TH2F>("dphiMaxTruthvsLayer_",";layer;#Delta#phi(truth,cell);cells",nLayers_,0,nLayers_,100,-1,1);
   
-  for (unsigned idx(0);idx<9;++idx){
+  for (unsigned idx(0);idx<25;++idx){
     std::ostringstream label;
     label << "dxMaxNeigh_" << idx;
     dxMaxNeigh_[idx] = fs_->make<TH1F>(label.str().c_str(),";#Deltax(neigh,cell) (mm);cells",100,-50,50);
     label.str("");
     label << "dyMaxNeigh_" << idx;
     dyMaxNeigh_[idx] = fs_->make<TH1F>(label.str().c_str(),";#Deltay(neigh,cell) (mm);cells",100,-50,50);
-    label.str("");
-    label << "dzMaxNeigh_" << idx;
-    dzMaxNeigh_[idx] = fs_->make<TH1F>(label.str().c_str(),";#Deltaxz(neigh,cell) (mm);cells",100,-1,1);
+    //label.str("");
+    //label << "dzMaxNeigh_" << idx;
+    //dzMaxNeigh_[idx] = fs_->make<TH1F>(label.str().c_str(),";#Deltaxz(neigh,cell) (mm);cells",100,-1,1);
   }
   
   for (unsigned iL(0);iL<nLayers_;++iL){
@@ -467,7 +473,16 @@ void HGCPhotonReco::createTreeBranches(info_t & info, const std::string & suffix
   tree_->Branch(("eSR3Reco"+suffix).c_str()              ,&info.eReco[1]            ,("eSR3Reco"+suffix+"/F").c_str());
   tree_->Branch(("eSR5Reco"+suffix).c_str()              ,&info.eReco[2]            ,("eSR5Reco"+suffix+"/F").c_str());
   tree_->Branch(("eSR7Reco"+suffix).c_str()              ,&info.eReco[3]            ,("eSR7Reco"+suffix+"/F").c_str());
-  
+
+  tree_->Branch(("eSR35Reco"+suffix).c_str()              ,&info.eReco[4]            ,("eSR35Reco"+suffix+"/F").c_str());
+  tree_->Branch(("eSR37Reco"+suffix).c_str()              ,&info.eReco[5]            ,("eSR37Reco"+suffix+"/F").c_str());
+  tree_->Branch(("eSR39Reco"+suffix).c_str()              ,&info.eReco[6]            ,("eSR39Reco"+suffix+"/F").c_str());
+
+  tree_->Branch(("eSR57Reco"+suffix).c_str()              ,&info.eReco[7]            ,("eSR57Reco"+suffix+"/F").c_str());
+  tree_->Branch(("eSR59Reco"+suffix).c_str()              ,&info.eReco[8]            ,("eSR59Reco"+suffix+"/F").c_str());
+
+  tree_->Branch(("eSR79Reco"+suffix).c_str()              ,&info.eReco[9]            ,("eSR79Reco"+suffix+"/F").c_str());
+
   for (unsigned iL(0); iL<nLayers_;++iL){
     std::ostringstream label;
     label.str("");
@@ -481,18 +496,94 @@ void HGCPhotonReco::createTreeBranches(info_t & info, const std::string & suffix
     tree_->Branch(label.str().c_str()              ,&info.eRecoLayers[2][iL]            ,(label.str()+"/F").c_str());
     label.str("");
     label << "eSR7RecoLayer"<<iL<<"_"<<suffix;
-    tree_->Branch(label.str().c_str()              ,&info.eRecoLayers[3][iL]            ,(label.str()+"/F").c_str());	  
+    tree_->Branch(label.str().c_str()              ,&info.eRecoLayers[3][iL]            ,(label.str()+"/F").c_str());
+
+    label.str("");
+    label << "eSR35RecoLayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoLayers[4][iL]            ,(label.str()+"/F").c_str());
+    label.str("");
+    label << "eSR37RecoLayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoLayers[5][iL]            ,(label.str()+"/F").c_str());
+    label.str("");
+    label << "eSR39RecoLayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoLayers[6][iL]            ,(label.str()+"/F").c_str());
+
+    label.str("");
+    label << "eSR57RecoLayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoLayers[7][iL]            ,(label.str()+"/F").c_str());
+    label.str("");
+    label << "eSR59RecoLayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoLayers[8][iL]            ,(label.str()+"/F").c_str());
+
+    label.str("");
+    label << "eSR79RecoLayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoLayers[9][iL]            ,(label.str()+"/F").c_str());
+
+
+  
   }
   
   tree_->Branch(("eSR1RecoPCA"+suffix).c_str()              ,&info.eRecoPCA[0]            ,("eSR1RecoPCA"+suffix+"/F").c_str());
   tree_->Branch(("eSR3RecoPCA"+suffix).c_str()              ,&info.eRecoPCA[1]            ,("eSR3RecoPCA"+suffix+"/F").c_str());
   tree_->Branch(("eSR5RecoPCA"+suffix).c_str()              ,&info.eRecoPCA[2]            ,("eSR5RecoPCA"+suffix+"/F").c_str());
   tree_->Branch(("eSR7RecoPCA"+suffix).c_str()              ,&info.eRecoPCA[3]            ,("eSR7RecoPCA"+suffix+"/F").c_str());
-  tree_->Branch(("converted"+suffix).c_str()              ,&info.converted            ,("converted"+suffix+"/I").c_str());
+ 
+  tree_->Branch(("eSR35RecoPCA"+suffix).c_str()              ,&info.eRecoPCA[4]            ,("eSR35RecoPCA"+suffix+"/F").c_str());
+  tree_->Branch(("eSR37RecoPCA"+suffix).c_str()              ,&info.eRecoPCA[5]            ,("eSR37RecoPCA"+suffix+"/F").c_str());
+  tree_->Branch(("eSR39RecoPCA"+suffix).c_str()              ,&info.eRecoPCA[6]            ,("eSR39RecoPCA"+suffix+"/F").c_str());
+
+  tree_->Branch(("eSR57RecoPCA"+suffix).c_str()              ,&info.eRecoPCA[7]            ,("eSR57RecoPCA"+suffix+"/F").c_str());
+  tree_->Branch(("eSR59RecoPCA"+suffix).c_str()              ,&info.eRecoPCA[8]            ,("eSR59RecoPCA"+suffix+"/F").c_str());
+
+  tree_->Branch(("eSR79RecoPCA"+suffix).c_str()              ,&info.eRecoPCA[9]            ,("eSR79RecoPCA"+suffix+"/F").c_str());
+
+  for (unsigned iL(0); iL<nLayers_;++iL){
+    std::ostringstream label;
+    label.str("");
+    label << "eSR1RecoPCALayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoPCALayers[0][iL]            ,(label.str()+"/F").c_str());
+    label.str("");
+    label << "eSR3RecoPCALayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoPCALayers[1][iL]            ,(label.str()+"/F").c_str());
+    label.str("");
+    label << "eSR5RecoPCALayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoPCALayers[2][iL]            ,(label.str()+"/F").c_str());
+    label.str("");
+    label << "eSR7RecoPCALayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoPCALayers[3][iL]            ,(label.str()+"/F").c_str());
+
+    label.str("");
+    label << "eSR35RecoPCALayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoPCALayers[4][iL]            ,(label.str()+"/F").c_str());
+    label.str("");
+    label << "eSR37RecoPCALayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoPCALayers[5][iL]            ,(label.str()+"/F").c_str());
+    label.str("");
+    label << "eSR39RecoPCALayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoPCALayers[6][iL]            ,(label.str()+"/F").c_str());
+
+    label.str("");
+    label << "eSR57RecoPCALayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoPCALayers[7][iL]            ,(label.str()+"/F").c_str());
+    label.str("");
+    label << "eSR59RecoPCALayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoPCALayers[8][iL]            ,(label.str()+"/F").c_str());
+
+    label.str("");
+    label << "eSR79RecoPCALayer"<<iL<<"_"<<suffix;
+    tree_->Branch(label.str().c_str()              ,&info.eRecoPCALayers[9][iL]            ,(label.str()+"/F").c_str());
+
+
+  
+  }
+  
+
+ tree_->Branch(("converted"+suffix).c_str()              ,&info.converted            ,("converted"+suffix+"/I").c_str());
   tree_->Branch(("showerMax"+suffix).c_str()              ,&info.showerMax            ,("showerMax"+suffix+"/I").c_str());
   tree_->Branch(("noPhiCrack"+suffix).c_str()              ,&info.noPhiCrack             ,("noPhiCrack"+suffix+"/B").c_str());
   tree_->Branch(("noPhiCrackPCA"+suffix).c_str()              ,&info.noPhiCrackPCA             ,("noPhiCrackPCA"+suffix+"/B").c_str());
   
+
   tree_->Branch(("xPCA"+suffix).c_str()              ,&info.xPCA            ,("xPCA"+suffix+"/F").c_str());
   tree_->Branch(("yPCA"+suffix).c_str()              ,&info.yPCA            ,("yPCA"+suffix+"/F").c_str());
   tree_->Branch(("zPCA"+suffix).c_str()              ,&info.zPCA            ,("zPCA"+suffix+"/F").c_str());
@@ -841,23 +932,31 @@ void HGCPhotonReco::getPhotonEnergy(const edm::PtrVector<HGCRecHit>& rechitvec,i
 		<< std::endl;
 		}*/
     if (!topology.valid(detidmax[iL]) || detidmax[iL].det()!=DetId::Forward || detidmax[iL].subdetId()!=HGCEE) {
-      info.invalidDetid=true;
-      info.invalidDetidPCA=true;
+      if (!isPCA) info.invalidDetid=true;
+      else info.invalidDetidPCA=true;
       continue;
     }
     //loop on signal regions
+    std::vector<unsigned> sizeL;
     std::vector<unsigned> sizeR;
-    sizeR.push_back(1);
-    sizeR.push_back(3);
-    sizeR.push_back(5);
-    sizeR.push_back(7);
-    double etot = 0;
+    sizeL.push_back(1);    sizeR.push_back(1);
+    sizeL.push_back(3);    sizeR.push_back(3);
+    sizeL.push_back(5);    sizeR.push_back(5);
+    sizeL.push_back(7);    sizeR.push_back(7);
+    sizeL.push_back(3);    sizeR.push_back(5);
+    sizeL.push_back(3);    sizeR.push_back(7);
+    sizeL.push_back(3);    sizeR.push_back(9);
+    sizeL.push_back(5);    sizeR.push_back(7);
+    sizeL.push_back(5);    sizeR.push_back(9);
+    sizeL.push_back(7);    sizeR.push_back(9);
+
+     double etot = 0;
     for (unsigned iS(0);iS<sizeR.size();++iS){
       
       std::vector<double> Exy;
-      Exy.resize(sizeR[iS]*sizeR[iS],0);
+      Exy.resize(sizeL[iS]*sizeR[iS],0);
       if (debug_) std::cout << " -- detidmax[" << iL << "=" << detidmax[iL] << std::endl;
-      fillNeighbours(detidmax[iL],Exy,info,isPCA);
+      fillNeighbours(detidmax[iL],Exy,sizeL[iS],sizeR[iS],info,isPCA);
       const GlobalPoint & center = hgcEEGeom_->getPosition(detidmax[iL]);
       if (!info.converted) {
 	dxMaxTruth_->Fill((center.x()-max.x())*10);
@@ -871,7 +970,10 @@ void HGCPhotonReco::getPhotonEnergy(const edm::PtrVector<HGCRecHit>& rechitvec,i
 	  info.eReco[iS] += Exy[idx]*absWeight(iL);
 	  info.eRecoLayers[iS][iL] += Exy[idx];
 	}
-	else info.eRecoPCA[iS] += Exy[idx]*absWeight(iL);
+	else {
+	  info.eRecoPCA[iS] += Exy[idx]*absWeight(iL);
+	  info.eRecoPCALayers[iS][iL] += Exy[idx];
+	}
       }
     }
     if (etot>maxE){
@@ -1007,40 +1109,91 @@ void HGCPhotonReco::getMaximumCell(const edm::PtrVector<HGCRecHit>& rechitvec,co
 */
 void HGCPhotonReco::fillNeighbours(const HGCEEDetId & detidmax,
 				   std::vector<double> & Exy,
+				   const unsigned nInEta,
+				   const unsigned nInPhi,
 				   info_t & info,
-				   bool isPCA){
+				   const bool isPCA){
 
-  unsigned nCells = sqrt(Exy.size());
+  //std::cout << " ===================================" << std::endl
+  //<< " -- fillneighbours for " << nInEta << " x " << nInPhi << std::endl
+  //<< " ===================================" << std::endl;
 
   const HGCalTopology& topology = hgcEEGeom_->topology();
   std::vector<HGCEEDetId> neighbours;
   neighbours.resize(Exy.size(),HGCEEDetId());
-  neighbours[(Exy.size()-1)/2] = detidmax;
-  unsigned nGo = (nCells-1)/2;
-
+  unsigned nGoE = 0;
+  unsigned nGoW = 0;
+  unsigned nGoN = 0;
+  unsigned nGoS = 0;
+  std::vector<unsigned> nGoMax;
+  nGoMax.resize(Exy.size(),0);
+  unsigned centralID = 0;
+  //symmetric cells
+  if (nInEta==nInPhi){
+    centralID = (Exy.size()-1)/2;
+    nGoE = (nInEta-1)/2;
+    nGoW = nGoE;
+    nGoN = nGoE;
+    nGoS = nGoE;
+  }
+  else if (nInPhi>nInEta) {
+    nGoN = (nInEta-1)/2;
+    nGoS = nGoN;
+    //get direction in which to go from phiSeed-phiSC:
+    //and quadrant
+    if (DeltaPhi(info.phiSeed,info.phiSC)>0){
+      //center on west side
+      //go more east
+      centralID = (nInEta-1)/2*nInPhi+(nInEta-1)/2;
+      nGoE = (nInEta-1)/2+nInPhi-nInEta;
+      nGoW = nGoN;
+    } else {
+      //center of east side
+      //go more west
+      centralID = (nInEta-1)/2*nInPhi+(nInPhi-1)-(nInEta-1)/2;
+      nGoW = (nInEta-1)/2+nInPhi-nInEta;
+      nGoE = nGoN;
+     }
+  }
+  else {
+    std::cout << " -- Wrong indices nInEta>nInPhi !! Don't know what to do..." << std::endl;
+    return;
+  }
+  neighbours[centralID] = detidmax;
   //south lines
-  for (unsigned i(0); i<nGo;++i){
-    unsigned center = (Exy.size()-1)/2 -nCells*i;
+  for (unsigned i(0); i<nGoS;++i){
+    unsigned center = centralID -nInPhi*i;
     //std::cout << " Center " << center << std::endl;
-    unsigned idxrow = (Exy.size()-1)/2 -nCells*(i+1);
+    unsigned idxrow = centralID -nInPhi*(i+1);
     DetId tmp = topology.goSouth(neighbours[center]);
     if (topology.valid(tmp)) {
       neighbours[idxrow] = HGCEEDetId(tmp);
+      nGoMax[idxrow] = i+1;
       unsigned idx=idxrow;
       //std::cout << " South row center " << idx << " " ;
-      for (unsigned j(0); j<nGo;++j){
-	unsigned nextidx = (Exy.size()-1)/2 -nCells*(i+1) - (j+1);
+      for (unsigned j(0); j<nGoW;++j){
+	unsigned nextidx = centralID -nInPhi*(i+1) - (j+1);
 	//std::cout << nextidx << " " ;
-	tmp = topology.goWest(neighbours[idx]);
-	if (topology.valid(tmp)) neighbours[nextidx]  = HGCEEDetId(tmp);
+	int subsec = neighbours[idx].subsector();
+	if (subsec>0) tmp = topology.goWest(neighbours[idx]);
+	else tmp = topology.goEast(neighbours[idx]);
+	if (topology.valid(tmp)) {
+	  neighbours[nextidx]  = HGCEEDetId(tmp);
+	  nGoMax[nextidx] = i+1+j;
+	}
 	idx=nextidx;
       }
       idx = idxrow;
-      for (unsigned j(0); j<nGo;++j){
-	unsigned nextidx = (Exy.size()-1)/2 -nCells*(i+1) + (j+1);
+      for (unsigned j(0); j<nGoE;++j){
+	unsigned nextidx = centralID -nInPhi*(i+1) + (j+1);
 	//std::cout << nextidx << " ";
-	tmp = topology.goEast(neighbours[idx]);
-	if (topology.valid(tmp)) neighbours[nextidx] = HGCEEDetId(tmp);
+	int subsec = neighbours[idx].subsector();
+	if (subsec>0) tmp = topology.goEast(neighbours[idx]);
+	else tmp = topology.goWest(neighbours[idx]);
+	if (topology.valid(tmp)) {
+	  neighbours[nextidx] = HGCEEDetId(tmp);
+	  nGoMax[nextidx] = i+1+j;
+	}
 	idx=nextidx;
       }
       //std::cout << std::endl;
@@ -1049,49 +1202,72 @@ void HGCPhotonReco::fillNeighbours(const HGCEEDetId & detidmax,
 
   {
     //center line
-    unsigned idx=(Exy.size()-1)/2;
+    unsigned idx=centralID;
     //std::cout << " Central row center " << idx << " " ;
-    for (unsigned j(0); j<nGo;++j){
-      unsigned nextidx = (Exy.size()-1)/2 - (j+1);
+    for (unsigned j(0); j<nGoW;++j){
+      unsigned nextidx = centralID - (j+1);
       //std::cout << nextidx << " " ;
-      DetId tmp = topology.goWest(neighbours[idx]);
-      if (topology.valid(tmp)) neighbours[nextidx]  = HGCEEDetId(tmp);
+	int subsec = neighbours[idx].subsector();
+	DetId tmp;
+	if (subsec>0) tmp = topology.goWest(neighbours[idx]);
+	else tmp = topology.goEast(neighbours[idx]);
+      if (topology.valid(tmp)) {
+	neighbours[nextidx]  = HGCEEDetId(tmp);
+	nGoMax[nextidx] = 1+j;
+      }
       idx=nextidx;
     }
-    idx = (Exy.size()-1)/2;
-    for (unsigned j(0); j<nGo;++j){
-      unsigned nextidx = (Exy.size()-1)/2 + (j+1);
+    idx = centralID;
+    for (unsigned j(0); j<nGoE;++j){
+      unsigned nextidx = centralID + (j+1);
       //std::cout << nextidx << " ";
-      DetId tmp = topology.goEast(neighbours[idx]);
-      if (topology.valid(tmp)) neighbours[nextidx] = HGCEEDetId(tmp);
+      int subsec = neighbours[idx].subsector();
+      DetId tmp;
+      if (subsec>0) tmp= topology.goEast(neighbours[idx]);
+      else tmp= topology.goWest(neighbours[idx]);
+      if (topology.valid(tmp)) {
+	neighbours[nextidx] = HGCEEDetId(tmp);
+	nGoMax[nextidx] = 1+j;
+      }
       idx=nextidx;
     }
     //std::cout << std::endl;
   }
 
   //north
-  for (unsigned i(0); i<nGo;++i){
-    unsigned center = (Exy.size()-1)/2 + nCells*i;
+  for (unsigned i(0); i<nGoN;++i){
+    unsigned center = centralID + nInPhi*i;
     //std::cout << " Center " << center << std::endl;
-    unsigned idxrow = (Exy.size()-1)/2 + nCells*(i+1);
+    unsigned idxrow = centralID + nInPhi*(i+1);
     DetId tmp = topology.goNorth(neighbours[center]);
     if (topology.valid(tmp)) {
       neighbours[idxrow] = HGCEEDetId(tmp);
+      nGoMax[idxrow] = i+1;
       unsigned idx=idxrow;
       //std::cout << " North row center " << idx << " " ;
-      for (unsigned j(0); j<nGo;++j){
-	unsigned nextidx = (Exy.size()-1)/2 + nCells*(i+1) - (j+1);
+      for (unsigned j(0); j<nGoW;++j){
+	unsigned nextidx = centralID + nInPhi*(i+1) - (j+1);
 	//std::cout << nextidx << " " ;
-	tmp = topology.goWest(neighbours[idx]);
-	if (topology.valid(tmp)) neighbours[nextidx]  = HGCEEDetId(tmp);
+	int subsec = neighbours[idx].subsector();
+	if (subsec>0) tmp = topology.goWest(neighbours[idx]);
+	else tmp = topology.goEast(neighbours[idx]);
+	if (topology.valid(tmp)) {
+	  neighbours[nextidx]  = HGCEEDetId(tmp);
+	  nGoMax[nextidx] = i+1+j;
+	}
 	idx=nextidx;
       }
       idx = idxrow;
-      for (unsigned j(0); j<nGo;++j){
-	unsigned nextidx = (Exy.size()-1)/2 + nCells*(i+1) + (j+1);
+      for (unsigned j(0); j<nGoE;++j){
+	unsigned nextidx = centralID + nInPhi*(i+1) + (j+1);
 	//std::cout << nextidx << " ";
-	tmp = topology.goEast(neighbours[idx]);
-	if (topology.valid(tmp)) neighbours[nextidx] = HGCEEDetId(tmp);
+	int subsec = neighbours[idx].subsector();
+	if (subsec>0) tmp = topology.goEast(neighbours[idx]);
+	else tmp = topology.goWest(neighbours[idx]);
+	if (topology.valid(tmp)) {
+	  neighbours[nextidx] = HGCEEDetId(tmp);
+	  nGoMax[nextidx] = i+1+j;
+	}
 	idx=nextidx;
       }
       //std::cout << std::endl;
@@ -1105,7 +1281,7 @@ void HGCPhotonReco::fillNeighbours(const HGCEEDetId & detidmax,
     //std::cout << " neighbour detid " << neighbours[idx] << std::endl;
     if (!topology.valid(neighbours[idx]) || neighbours[idx].det()!=DetId::Forward || neighbours[idx].subdetId()!=HGCEE) {
       if (!isPCA) info.invalidNeighbour = true;
-      else info.invalidNeighbourPCA = false;
+      else info.invalidNeighbourPCA = true;
       continue;
     }
     //std::cout << " accessing rechit " << std::endl;
@@ -1113,23 +1289,23 @@ void HGCPhotonReco::fillNeighbours(const HGCEEDetId & detidmax,
     if (theHit==recHits_->end()) continue;
     //std::cout << " rechit found" << std::endl;
     GlobalPoint cellPos = hgcEEGeom_->getPosition(neighbours[idx]);
-    if ((neighbours[idx].sector()*neighbours[idx].subsector()) != (detidmax.sector()*detidmax.subsector())) {
+    if (neighbours[idx].sector() != detidmax.sector()) {
       if (!isPCA) info.noPhiCrack = false;
       else info.noPhiCrackPCA = false;
     }
     double posx = cellPos.x();
     double posy = cellPos.y();
-    double posz = cellPos.z();
-    if (Exy.size()==9){
+    //double posz = cellPos.z();
+    if (Exy.size()==25){
       dxMaxNeigh_[idx]->Fill((posx-center.x())*10.);
       dyMaxNeigh_[idx]->Fill((posy-center.y())*10.);
-      dzMaxNeigh_[idx]->Fill((posz-center.z())*10.);
+      //dzMaxNeigh_[idx]->Fill((posz-center.z())*10.);
     }
-    if (fabs(posx-center.x())>sqrt(2*pow(nGo,2)) ||
-	fabs(posy-center.y())>sqrt(2*pow(nGo,2))){
-      if (!isPCA) info.invalidNeighbour = true;
-      else info.invalidNeighbourPCA = false;
-    }
+    //if (fabs(posx-center.x())>sqrt(2*pow(nGoMax[idx],2)) ||
+    //fabs(posy-center.y())>sqrt(2*pow(nGoMax[idx],2))){
+    //if (!isPCA) info.invalidNeighbour = true;
+    //else info.invalidNeighbourPCA = true;
+    //}
     //double costheta = fabs(posz)/sqrt(posz*posz+posx*posx+posy*posy);
     double energy = theHit->energy()/mipE_;//*costheta;//in MIP
     Exy[idx] = energy;

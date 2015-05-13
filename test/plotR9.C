@@ -61,7 +61,7 @@ double calibratedE(const double Etot, const double eta,
 
 int plotR9() {
 
-  bool doPu = false;
+  bool doPu = true;
   setTDRStyle();
 
   std::string cut1pca = "eTrue1/cosh(etaTrue1)>40 && TMath::Abs(etaTrue1)>1.6 && TMath::Abs(etaTrue1)<2.8 && (TMath::Nint(TMath::Abs(phiTrue1)/(2*TMath::Pi())*360.)%20<9 || TMath::Nint(TMath::Abs(phiTrue1)/(2*TMath::Pi())*360.)%20>11) && invalidDetidPCA1==0 && invalidNeighbourPCA1==0 && dRTrue1 < 0.05 && noPhiCrackPCA1==1";
@@ -80,7 +80,7 @@ int plotR9() {
     return 1;
   }
 
-  const unsigned nC = 15;
+  const unsigned nC = 16;
   TCanvas *myc[nC];
   for (unsigned ic(0); ic<nC; ++ic){
     std::ostringstream label;
@@ -472,8 +472,10 @@ int plotR9() {
   std::cout << " -- unconv photon " << htot27->GetEntries() << std::endl;
   //t->Draw("calibratedE(eSR7Reco1,etaPCA1,7)/eTrue1>>+htot27",(cut1pca+" && calibratedE(eSR3Reco1,etaPCA1)/calibratedE(eSR5Reco1,etaPCA1,5)<=0.99").c_str());
   //t->Draw("calibratedE(eSR7Reco2,etaPCA2,7)/eTrue2>>+htot27",(cut2pca+" && calibratedE(eSR3Reco2,etaPCA2)/calibratedE(eSR5Reco2,etaPCA2,5)<=0.99").c_str());
-  t->Draw("calibratedE(eSR7Reco1,etaPCA1,7)/((0.993-0.60*calibratedE(eSR3RecoLayer0_1+eSR3RecoLayer1_1+eSR3RecoLayer2_1+eSR3RecoLayer3_1+eSR3RecoLayer4_1,etaPCA1)/calibratedE(eSR3Reco1,etaPCA1))*eTrue1)>>+htot27",(cut1pca+" && calibratedE(eSR3Reco1,etaPCA1)/calibratedE(eSR5Reco1,etaPCA1,5)<=0.99").c_str());
-  t->Draw("calibratedE(eSR7Reco2,etaPCA2,7)/((0.993-0.60*calibratedE(eSR3RecoLayer0_2+eSR3RecoLayer1_2+eSR3RecoLayer2_2+eSR3RecoLayer3_2+eSR3RecoLayer4_2,etaPCA2)/calibratedE(eSR3Reco2,etaPCA2))*eTrue2)>>+htot27",(cut2pca+" && calibratedE(eSR3Reco2,etaPCA2)/calibratedE(eSR5Reco2,etaPCA2,5)<=0.99").c_str());
+  if (doPu) t->Draw("calibratedE(eSR7Reco1,etaPCA1,7)/((1.022-0.80*calibratedE(eSR3RecoLayer0_1+eSR3RecoLayer1_1+eSR3RecoLayer2_1+eSR3RecoLayer3_1+eSR3RecoLayer4_1,etaPCA1)/calibratedE(eSR3Reco1,etaPCA1))*eTrue1)>>+htot27",(cut1pca+" && calibratedE(eSR3Reco1,etaPCA1)/calibratedE(eSR5Reco1,etaPCA1,5)<=0.99").c_str());
+  else t->Draw("calibratedE(eSR7Reco1,etaPCA1,7)/((0.993-0.60*calibratedE(eSR3RecoLayer0_1+eSR3RecoLayer1_1+eSR3RecoLayer2_1+eSR3RecoLayer3_1+eSR3RecoLayer4_1,etaPCA1)/calibratedE(eSR3Reco1,etaPCA1))*eTrue1)>>+htot27",(cut1pca+" && calibratedE(eSR3Reco1,etaPCA1)/calibratedE(eSR5Reco1,etaPCA1,5)<=0.99").c_str());
+  if (doPu) t->Draw("calibratedE(eSR7Reco2,etaPCA2,7)/((1.022-0.80*calibratedE(eSR3RecoLayer0_2+eSR3RecoLayer1_2+eSR3RecoLayer2_2+eSR3RecoLayer3_2+eSR3RecoLayer4_2,etaPCA2)/calibratedE(eSR3Reco2,etaPCA2))*eTrue2)>>+htot27",(cut2pca+" && calibratedE(eSR3Reco2,etaPCA2)/calibratedE(eSR5Reco2,etaPCA2,5)<=0.99").c_str());
+  else t->Draw("calibratedE(eSR7Reco2,etaPCA2,7)/((0.993-0.60*calibratedE(eSR3RecoLayer0_2+eSR3RecoLayer1_2+eSR3RecoLayer2_2+eSR3RecoLayer3_2+eSR3RecoLayer4_2,etaPCA2)/calibratedE(eSR3Reco2,etaPCA2))*eTrue2)>>+htot27",(cut2pca+" && calibratedE(eSR3Reco2,etaPCA2)/calibratedE(eSR5Reco2,etaPCA2,5)<=0.99").c_str());
 
   std::cout << " -- all photons " << htot27->GetEntries() << std::endl;
   htot27->Draw();
@@ -709,11 +711,11 @@ int plotR9() {
   TH2F *h2Dtot7_33l13o33 = new TH2F("h2Dtot7_33l13o33",";e_{3#times3}(L1-5)/e_{3#times3};e_{reco}/e_{true};Photons",50,0.,0.1,50,0,1.2);
   t->Draw("calibratedE(eSR3Reco1,etaPCA1)/eTrue1:calibratedE(eSR3RecoLayer0_1+eSR3RecoLayer1_1+eSR3RecoLayer2_1+eSR3RecoLayer3_1+eSR3RecoLayer4_1,etaPCA1)/calibratedE(eSR3Reco1,etaPCA1)>>h2Dtot7_33l13o33",(cut1pca+" && calibratedE(eSR3Reco1,etaPCA1)/calibratedE(eSR5Reco1,etaPCA1,5)>0.99").c_str());
   t->Draw("calibratedE(eSR3Reco2,etaPCA2)/eTrue2:calibratedE(eSR3RecoLayer0_2+eSR3RecoLayer1_2+eSR3RecoLayer2_2+eSR3RecoLayer3_2+eSR3RecoLayer4_2,etaPCA2,3)/calibratedE(eSR3Reco2,etaPCA2)>>+h2Dtot7_33l13o33",(cut2pca+" && calibratedE(eSR3Reco2,etaPCA2)/calibratedE(eSR5Reco2,etaPCA2,5)>0.99").c_str());
-  TH2F *h2D337_33l13o33 = (TH2F*)h2Dtot7_33l13o33->Clone("h2D337_33l13o33");
+  //TH2F *h2D337_33l13o33 = (TH2F*)h2Dtot7_33l13o33->Clone("h2D337_33l13o33");
 
-  std::cout << " -- unconv photon " << h2Dtot7_33l13o33->GetEntries() << std::endl;
-  t->Draw("calibratedE(eSR7Reco1,etaPCA1,7)/eTrue1:calibratedE(eSR3RecoLayer0_1+eSR3RecoLayer1_1+eSR3RecoLayer2_1+eSR3RecoLayer3_1+eSR3RecoLayer4_1,etaPCA1)/calibratedE(eSR3Reco1,etaPCA1)>>+h2Dtot7_33l13o33",(cut1pca+" && calibratedE(eSR3Reco1,etaPCA1)/calibratedE(eSR5Reco1,etaPCA1,5)<=0.99").c_str());
-  t->Draw("calibratedE(eSR7Reco2,etaPCA2,7)/eTrue2:calibratedE(eSR3RecoLayer0_2+eSR3RecoLayer1_2+eSR3RecoLayer2_2+eSR3RecoLayer3_2+eSR3RecoLayer4_2,etaPCA2,3)/calibratedE(eSR3Reco2,etaPCA2)>>+h2Dtot7_33l13o33",(cut2pca+" && calibratedE(eSR3Reco2,etaPCA2)/calibratedE(eSR5Reco2,etaPCA2,5)<=0.99").c_str());
+  //std::cout << " -- unconv photon " << h2Dtot7_33l13o33->GetEntries() << std::endl;
+  //t->Draw("calibratedE(eSR7Reco1,etaPCA1,7)/eTrue1:calibratedE(eSR3RecoLayer0_1+eSR3RecoLayer1_1+eSR3RecoLayer2_1+eSR3RecoLayer3_1+eSR3RecoLayer4_1,etaPCA1)/calibratedE(eSR3Reco1,etaPCA1)>>+h2Dtot7_33l13o33",(cut1pca+" && calibratedE(eSR3Reco1,etaPCA1)/calibratedE(eSR5Reco1,etaPCA1,5)<=0.99").c_str());
+  //t->Draw("calibratedE(eSR7Reco2,etaPCA2,7)/eTrue2:calibratedE(eSR3RecoLayer0_2+eSR3RecoLayer1_2+eSR3RecoLayer2_2+eSR3RecoLayer3_2+eSR3RecoLayer4_2,etaPCA2,3)/calibratedE(eSR3Reco2,etaPCA2)>>+h2Dtot7_33l13o33",(cut2pca+" && calibratedE(eSR3Reco2,etaPCA2)/calibratedE(eSR5Reco2,etaPCA2,5)<=0.99").c_str());
   
   std::cout << " -- all photons " << h2Dtot7_33l13o33->GetEntries() << std::endl;
   gPad->SetLogz(1);
@@ -724,23 +726,73 @@ int plotR9() {
   h7_33l13o33_pfx->SetMarkerStyle(22);
   h7_33l13o33_pfx->SetMarkerColor(1);
   h7_33l13o33_pfx->Draw("PEsame");
-  h7_33l13o33_pfx->Fit("pol1","RI","same",0.,0.1);
+  h7_33l13o33_pfx->Fit("pol2","RI","same",0.,0.1);
   //fit = h7_33l13o33_pfx->GetFunction("pol1");
   //fit->Draw("same");
-  h2D337_33l13o33->SetMarkerStyle(1);
-  h2D337_33l13o33->SetMarkerColor(6);
-  h2D337_33l13o33->SetLineColor(6);
-  h2D337_33l13o33->Draw("P");//same");
-  (h2D337_33l13o33->ProfileX())->Draw("same");
-  TProfile *h7uc_33l13o33_pfx = (TProfile*)gDirectory->Get("h2D337_33l13o33_pfx");
-  h7uc_33l13o33_pfx->SetMarkerStyle(23);
-  h7uc_33l13o33_pfx->SetMarkerColor(6);
-  h7uc_33l13o33_pfx->Draw("PEsame");
-  h7uc_33l13o33_pfx->Fit("pol2","RI","same",0.,0.1);
+  //h2D337_33l13o33->SetMarkerStyle(1);
+  //h2D337_33l13o33->SetMarkerColor(6);
+  //h2D337_33l13o33->SetLineColor(6);
+  // h2D337_33l13o33->Draw("P");//same");
+  //(h2D337_33l13o33->ProfileX())->Draw("same");
+  //TProfile *h7uc_33l13o33_pfx = (TProfile*)gDirectory->Get("h2D337_33l13o33_pfx");
+  //h7uc_33l13o33_pfx->SetMarkerStyle(23);
+  //h7uc_33l13o33_pfx->SetMarkerColor(6);
+  //h7uc_33l13o33_pfx->Draw("PEsame");
+  //h7uc_33l13o33_pfx->Fit("pol2","RI","same",0.,0.1);
+
+  TF1 *fitnopu = new TF1("fitnopu","1.017-1.29*x+8.5*x*x",0,0.1);
+  fitnopu->SetLineColor(7);
+  fitnopu->SetLineWidth(2);
+  fitnopu->Draw("same");
 
   myc[14]->Update();
-  if (doPu) myc[14]->Print("PLOTS_R9/eReco37overeTruevse33L1-5oe33_conv5x5_Hgg_140pu.pdf");
-  else myc[14]->Print("PLOTS_R9/eReco37overeTruevse33L1-5oe33_conv5x5_Hgg_0pu.pdf");
+  if (doPu) myc[14]->Print("PLOTS_R9/eReco37overeTruevse33L1-5oe33_unconv5x5_Hgg_140pu.pdf");
+  else myc[14]->Print("PLOTS_R9/eReco37overeTruevse33L1-5oe33_unconv5x5_Hgg_0pu.pdf");
+    
+
+  myc[15]->cd();
+  //gStyle->SetOptStat("eMRuo");
+  //gStyle->SetOptFit(1111);
+  gPad->SetRightMargin(0.15);
+  TH2F *h2Dtot7_33l13o33conv = new TH2F("h2Dtot7_33l13o33conv",";e_{3#times3}(L1-5)/e_{3#times3};e_{reco}/e_{true};Photons",50,0.,0.1,50,0,1.2);
+  //t->Draw("calibratedE(eSR3Reco1,etaPCA1)/eTrue1:calibratedE(eSR3RecoLayer0_1+eSR3RecoLayer1_1+eSR3RecoLayer2_1+eSR3RecoLayer3_1+eSR3RecoLayer4_1,etaPCA1)/calibratedE(eSR3Reco1,etaPCA1)>>h2Dtot7_33l13o33conv",(cut1pca+" && calibratedE(eSR3Reco1,etaPCA1)/calibratedE(eSR5Reco1,etaPCA1,5)>0.99").c_str());
+  //t->Draw("calibratedE(eSR3Reco2,etaPCA2)/eTrue2:calibratedE(eSR3RecoLayer0_2+eSR3RecoLayer1_2+eSR3RecoLayer2_2+eSR3RecoLayer3_2+eSR3RecoLayer4_2,etaPCA2,3)/calibratedE(eSR3Reco2,etaPCA2)>>+h2Dtot7_33l13o33conv",(cut2pca+" && calibratedE(eSR3Reco2,etaPCA2)/calibratedE(eSR5Reco2,etaPCA2,5)>0.99").c_str());
+  //TH2F *h2D337_33l13o33conv = (TH2F*)h2Dtot7_33l13o33conv->Clone("h2D337_33l13o33conv");
+
+  //std::cout << " -- unconv photon " << h2Dtot7_33l13o33conv->GetEntries() << std::endl;
+  t->Draw("calibratedE(eSR7Reco1,etaPCA1,7)/eTrue1:calibratedE(eSR3RecoLayer0_1+eSR3RecoLayer1_1+eSR3RecoLayer2_1+eSR3RecoLayer3_1+eSR3RecoLayer4_1,etaPCA1)/calibratedE(eSR3Reco1,etaPCA1)>>+h2Dtot7_33l13o33conv",(cut1pca+" && calibratedE(eSR3Reco1,etaPCA1)/calibratedE(eSR5Reco1,etaPCA1,5)<=0.99").c_str());
+  t->Draw("calibratedE(eSR7Reco2,etaPCA2,7)/eTrue2:calibratedE(eSR3RecoLayer0_2+eSR3RecoLayer1_2+eSR3RecoLayer2_2+eSR3RecoLayer3_2+eSR3RecoLayer4_2,etaPCA2,3)/calibratedE(eSR3Reco2,etaPCA2)>>+h2Dtot7_33l13o33conv",(cut2pca+" && calibratedE(eSR3Reco2,etaPCA2)/calibratedE(eSR5Reco2,etaPCA2,5)<=0.99").c_str());
+  
+  std::cout << " -- all photons " << h2Dtot7_33l13o33conv->GetEntries() << std::endl;
+  gPad->SetLogz(1);
+  h2Dtot7_33l13o33conv->GetZaxis()->SetTitleOffset(0.7);
+  h2Dtot7_33l13o33conv->Draw("colz");
+  (h2Dtot7_33l13o33conv->ProfileX("h2Dtot7_33l13o33conv_pfx",h2Dtot7_33l13o33conv->GetYaxis()->FindBin(0.9),h2Dtot7_33l13o33conv->GetYaxis()->FindBin(1.2)))->Draw("same");
+  TProfile *h7_33l13o33conv_pfx = (TProfile*)gDirectory->Get("h2Dtot7_33l13o33conv_pfx");
+  h7_33l13o33conv_pfx->SetMarkerStyle(22);
+  h7_33l13o33conv_pfx->SetMarkerColor(1);
+  h7_33l13o33conv_pfx->Draw("PEsame");
+  h7_33l13o33conv_pfx->Fit("pol1","RI","same",0.,0.1);
+  //fit = h7_33l13o33conv_pfx->GetFunction("pol1");
+  //fit->Draw("same");
+  //h2D337_33l13o33conv->SetMarkerStyle(1);
+  //h2D337_33l13o33conv->SetMarkerColor(6);
+  //h2D337_33l13o33conv->SetLineColor(6);
+  //h2D337_33l13o33conv->Draw("P");//same");
+  //(h2D337_33l13o33conv->ProfileX())->Draw("same");
+  //TProfile *h7uc_33l13o33conv_pfx = (TProfile*)gDirectory->Get("h2D337_33l13o33conv_pfx");
+  //h7uc_33l13o33conv_pfx->SetMarkerStyle(23);
+  //h7uc_33l13o33conv_pfx->SetMarkerColor(6);
+  //h7uc_33l13o33conv_pfx->Draw("PEsame");
+  //h7uc_33l13o33conv_pfx->Fit("pol2","RI","same",0.,0.1);
+  TF1 *fitnopuconv = new TF1("fitnopuconv","0.993-0.60*x",0,0.1);
+  fitnopuconv->SetLineColor(7);
+  fitnopuconv->SetLineWidth(2);
+  fitnopuconv->Draw("same");
+
+  myc[15]->Update();
+  if (doPu) myc[15]->Print("PLOTS_R9/eReco37overeTruevse33L1-5oe33_conv5x5_Hgg_140pu.pdf");
+  else myc[15]->Print("PLOTS_R9/eReco37overeTruevse33L1-5oe33_conv5x5_Hgg_0pu.pdf");
     
 
 
